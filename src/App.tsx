@@ -21,6 +21,7 @@ import { AddUserModal } from './components/AddUserModal';
 import { filterReceipts } from './utils/filterHelper';
 import { Receipt } from './types';
 import { activeFirebaseProjectId } from './firebase';
+import smartAccountingHeroImg from './assets/images/smart_accounting_hero_1795450126690.jpg';
 import {
   ShieldCheck,
   LogIn,
@@ -37,8 +38,7 @@ import {
   RefreshCw,
   FileStack,
   ScanText,
-  ArrowUpRight,
-  ArrowDownLeft,
+  Calculator,
   CheckCircle2,
   Database,
 } from 'lucide-react';
@@ -86,6 +86,7 @@ function MainLayout() {
   const [targetAssetAccountId, setTargetAssetAccountId] = useState<string | undefined>(undefined);
   const [seedMessage, setSeedMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isSeedingSamples, setIsSeedingSamples] = useState<boolean>(false);
+  const [heroImgFailed, setHeroImgFailed] = useState<boolean>(false);
 
   const handleNavigateToAssets = (accountId?: string) => {
     setTargetAssetAccountId(accountId);
@@ -236,8 +237,11 @@ function MainLayout() {
                 ระบบบริหารการเงินและเอกสารบัญชีองค์กร · Firebase Cloud Sync
               </p>
 
-              <h1 className="font-display text-3xl sm:text-4xl lg:text-[42px] font-bold text-slate-900 tracking-tight leading-[1.16]">
-                ควบคุมค่าใช้จ่ายและงบประมาณโครงการในมุมมองเดียว
+              <h1 className="font-display text-3xl sm:text-4xl lg:text-[46px] font-bold text-slate-900 tracking-tight leading-[1.12] flex items-center gap-3.5">
+                <span className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-[#0F172A] text-teal-400 flex items-center justify-center shrink-0">
+                  <Calculator className="w-6 h-6 sm:w-7 sm:h-7" />
+                </span>
+                <span>UI ACC BOT</span>
               </h1>
 
               <p className="text-slate-600 text-sm sm:text-base leading-relaxed max-w-xl">
@@ -273,60 +277,30 @@ function MainLayout() {
               </div>
             </div>
 
-            {/* Clean Financial Ledger Preview Card */}
+            {/* Smart Modern Accounting Graphic */}
             <div className="lg:col-span-6">
-              <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden">
-                <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
-                  <div>
-                    <span className="text-xs text-slate-500 block">สภาพคล่องรวมทุกบัญชี</span>
-                    <span className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-slate-900 mt-0.5 block">
-                      ฿ 1,205,000.00
-                    </span>
+              <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden aspect-[4/3] flex items-center justify-center">
+                {!heroImgFailed ? (
+                  <img
+                    src={smartAccountingHeroImg}
+                    alt="ภาพกราฟิกแสดงระบบบัญชีและการวิเคราะห์การเงินสมัยใหม่ UiAccBot"
+                    referrerPolicy="no-referrer"
+                    onError={() => setHeroImgFailed(true)}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-slate-50 via-teal-50/40 to-slate-100 flex flex-col items-center justify-center p-8 text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-[#0F172A] text-teal-400 flex items-center justify-center mb-4">
+                      <Calculator className="w-8 h-8" />
+                    </div>
+                    <p className="font-display font-bold text-lg text-slate-900">
+                      UI ACC BOT
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Smart Cloud Accounting &amp; Financial Management
+                    </p>
                   </div>
-                  <div className="text-right text-xs font-mono tabular-nums space-y-1">
-                    <div className="flex items-center justify-end gap-1 text-emerald-700 font-semibold">
-                      <ArrowDownLeft className="w-3.5 h-3.5" />
-                      <span>+850,000.00</span>
-                    </div>
-                    <div className="flex items-center justify-end gap-1 text-rose-700 font-semibold">
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                      <span>-142,350.00</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="divide-y divide-slate-100 text-xs">
-                  <div className="px-6 py-3.5 flex items-center justify-between">
-                    <div>
-                      <span className="font-semibold text-slate-900 block">บจก. สยามแม็คโคร · #MK-2026-089</span>
-                      <span className="text-[11px] text-slate-500">PRJ-101 · วัสดุสำนักงาน · VAT 7%</span>
-                    </div>
-                    <div className="text-right font-mono tabular-nums">
-                      <span className="font-semibold text-slate-900 block">-12,450.00 ฿</span>
-                      <span className="text-[11px] text-emerald-700 font-sans">อนุมัติแล้ว</span>
-                    </div>
-                  </div>
-                  <div className="px-6 py-3.5 flex items-center justify-between">
-                    <div>
-                      <span className="font-semibold text-slate-900 block">ปตท. สถานีบริการน้ำมัน · #PTT-4412</span>
-                      <span className="text-[11px] text-slate-500">PRJ-102 · ค่าน้ำมันเดินทาง · VAT 7%</span>
-                    </div>
-                    <div className="text-right font-mono tabular-nums">
-                      <span className="font-semibold text-slate-900 block">-2,180.00 ฿</span>
-                      <span className="text-[11px] text-emerald-700 font-sans">อนุมัติแล้ว</span>
-                    </div>
-                  </div>
-                  <div className="px-6 py-3.5 flex items-center justify-between">
-                    <div>
-                      <span className="font-semibold text-slate-900 block">บจก. แอดไวซ์ ไอที · #ADV-99104</span>
-                      <span className="text-[11px] text-slate-500">PRJ-101 · อุปกรณ์คอมพิวเตอร์</span>
-                    </div>
-                    <div className="text-right font-mono tabular-nums">
-                      <span className="font-semibold text-slate-900 block">-28,900.00 ฿</span>
-                      <span className="text-[11px] text-amber-700 font-sans">รออนุมัติ</span>
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
