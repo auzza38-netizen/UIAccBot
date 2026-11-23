@@ -3,186 +3,249 @@ import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatThaiDateTime } from '../utils/formatters';
 import {
-  Settings,
+  activeFirebaseProjectId,
+  activeFirestoreDatabaseId,
+  isUsingEnvFirebaseConfig,
+} from '../firebase';
+import {
   ShieldCheck,
   History,
   Lock,
   Cpu,
   Database,
-  RefreshCw,
   CheckCircle2,
+  Loader2,
+  AlertTriangle,
   Sparkles,
 } from 'lucide-react';
 import { MASTER_ADMIN_EMAIL } from '../services/dbService';
 
 export const SettingsPage: React.FC = () => {
-  const { auditLogs, resetMockData, receipts, projects, bankAccounts, statementRecords } = useData();
+  const {
+    auditLogs,
+    seedSampleDataToFirebase,
+    receipts,
+    projects,
+    bankAccounts,
+    statementRecords,
+  } = useData();
   const { isAdmin } = useAuth();
-  const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [seedStatus, setSeedStatus] = useState<{ type: 'success' | 'error'; text: string } | null>(
+    null
+  );
+  const [isSeeding, setIsSeeding] = useState<boolean>(false);
 
-  const handleResetDemo = () => {
-    resetMockData();
-    setResetMessage('รีเซ็ตข้อมูลจำลองทั้งหมดกลับเป็นค่าเริ่มต้นเรียบร้อยแล้ว');
-    setTimeout(() => setResetMessage(null), 4000);
+  const handleSeedSamples = async () => {
+    setIsSeeding(true);
+    setSeedStatus(null);
+    try {
+      await seedSampleDataToFirebase();
+      setSeedStatus({
+        type: 'success',
+        text: 'เพิ่มข้อมูลตัวอย่าง (โครงการ ใบเสร็จ หมวดหมู่ บัญชีธนาคาร และ Statement) เข้าสู่ Firebase Firestore เรียบร้อยแล้ว',
+      });
+      setTimeout(() => setSeedStatus(null), 5000);
+    } catch (err: any) {
+      setSeedStatus({
+        type: 'error',
+        text: err?.message || 'เกิดข้อผิดพลาดในการเพิ่มข้อมูลตัวอย่างเข้า Firebase',
+      });
+    } finally {
+      setIsSeeding(false);
+    }
   };
 
   return (
-    <div className="space-y-6 max-w-5xl">
-      <div>
-        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-          <Settings className="w-5 h-5 text-teal-600" />
-          การตั้งค่าระบบ & ประวัติการตรวจสอบ (Settings & Audit Logs)
-        </h2>
-        <p className="text-xs text-slate-500 mt-0.5">
-          ภาพรวมโหมด Frontend UI Template, โครงสร้างการทำงานจำลอง และประวัติการบันทึกกิจกรรมในเซสชัน
+    <div className="space-y-6 max-w-6xl">
+      <div className="pb-2 border-b border-slate-200/80">
+        <h1 className="font-display text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+          ตั้งค่าระบบและประวัติการใช้งาน
+        </h1>
+        <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          สถานะการเชื่อมต่อฐานข้อมูล Firebase Firestore นโยบายความปลอดภัย และประวัติกิจกรรมทั้งหมด (Audit Logs)
         </p>
       </div>
 
-      {/* Banner: Frontend UI Template Mode & Reset Demo Data */}
-      <div className="p-4 sm:p-5 bg-gradient-to-br from-[#12304A] via-[#173e60] to-slate-900 text-white rounded-2xl shadow-md border border-teal-500/30">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      {/* Firebase Connection & Seed Card */}
+      <div className="bg-white border border-slate-200/90 rounded-xl p-5 sm:p-6">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
           <div className="flex items-start gap-3.5">
-            <div className="p-2.5 bg-teal-500/20 border border-teal-400/30 rounded-xl text-teal-300 shrink-0 mt-0.5">
-              <Database className="w-6 h-6" />
+            <div className="w-10 h-10 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center shrink-0">
+              <Database className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex flex-wrap items-center gap-2 mb-1">
-                <h3 className="font-bold text-sm sm:text-base text-white flex items-center gap-2">
-                  โหมดเทมเพลตส่วนหน้า (Pure Frontend UI Template)
-                </h3>
-                <span className="text-[10px] bg-teal-400/20 text-teal-200 border border-teal-400/30 px-2 py-0.5 rounded-full font-bold">
-                  Mock Data Interactive
-                </span>
-              </div>
-              <p className="text-xs text-slate-300 leading-relaxed max-w-2xl">
-                แอปพลิเคชันทำงานด้วยข้อมูลจำลอง (Hardcoded Mock Data) ในหน่วยความจำของเบราว์เซอร์ทั้งหมด โดยไม่เชื่อมต่อฐานข้อมูลหรือ API ภายนอก คุณสามารถทดลองเพิ่มใบเสร็จ อนุมัติรายการ แก้ไขโครงการ และส่งออกรายงาน Excel/PDF ได้ครบทุกปุ่ม
+              <h2 className="font-display font-semibold text-base text-slate-900">
+                เชื่อมต่อฐานข้อมูล Firebase Firestore (Real-Time Cloud Sync)
+              </h2>
+              <p className="text-xs text-slate-500 leading-relaxed max-w-2xl mt-1">
+                ข้อมูลโครงการ ใบเสร็จรับเงิน ผังหมวดหมู่ บัญชีธนาคาร Statement และสิทธิ์ผู้ใช้งานทั้งหมดถูกจัดเก็บและซิงค์แบบเรียลไทม์บน Firebase Cloud
               </p>
-              <div className="flex flex-wrap gap-2 mt-2.5 text-[11px] text-teal-100">
-                <span className="bg-white/10 px-2.5 py-1 rounded-lg">📁 {projects.length} โครงการ</span>
-                <span className="bg-white/10 px-2.5 py-1 rounded-lg">🧾 {receipts.length} ใบเสร็จ</span>
-                <span className="bg-white/10 px-2.5 py-1 rounded-lg">🏦 {bankAccounts.length} บัญชี</span>
-                <span className="bg-white/10 px-2.5 py-1 rounded-lg">📑 {statementRecords.length} Statement</span>
+
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 text-xs text-slate-600 font-mono tabular-nums">
+                <span className="text-teal-800 font-semibold">
+                  Project: {activeFirebaseProjectId || '-'}
+                </span>
+                <span aria-hidden="true" className="text-slate-300">·</span>
+                <span>
+                  Config: {isUsingEnvFirebaseConfig ? 'VITE_FIREBASE_* Env' : 'Firebase Applet Config'}
+                </span>
+                {activeFirestoreDatabaseId && (
+                  <>
+                    <span aria-hidden="true" className="text-slate-300">·</span>
+                    <span className="truncate max-w-[260px]" title={activeFirestoreDatabaseId}>
+                      DB: {activeFirestoreDatabaseId}
+                    </span>
+                  </>
+                )}
               </div>
-              {resetMessage && (
-                <div className="mt-3 p-2.5 rounded-lg text-xs font-semibold bg-emerald-950/80 text-emerald-200 border border-emerald-500/40 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>{resetMessage}</span>
+
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-slate-600 font-mono tabular-nums">
+                <span>{projects.length} โครงการ</span>
+                <span aria-hidden="true" className="text-slate-300">·</span>
+                <span>{receipts.length} ใบเสร็จ</span>
+                <span aria-hidden="true" className="text-slate-300">·</span>
+                <span>{bankAccounts.length} บัญชีธนาคาร</span>
+                <span aria-hidden="true" className="text-slate-300">·</span>
+                <span>{statementRecords.length} Statement</span>
+              </div>
+
+              {seedStatus && (
+                <div
+                  className={`mt-3 p-3 rounded-lg text-xs font-medium border flex items-center gap-2 ${
+                    seedStatus.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      : 'bg-rose-50 text-rose-800 border-rose-200'
+                  }`}
+                >
+                  {seedStatus.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                  )}
+                  <span>{seedStatus.text}</span>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0 pl-12 lg:pl-0">
-            <button
-              onClick={handleResetDemo}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#0D9488] hover:bg-teal-500 text-white text-xs font-bold rounded-xl shadow-sm transition cursor-pointer"
-            >
-              <RefreshCw className="w-4 h-4" />
-              รีเซ็ตข้อมูลจำลองเริ่มต้น
-            </button>
-          </div>
+          {isAdmin && (
+            <div className="shrink-0">
+              <button
+                onClick={handleSeedSamples}
+                disabled={isSeeding}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#0F766E] hover:bg-[#115E59] disabled:opacity-60 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer whitespace-nowrap"
+              >
+                {isSeeding ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>กำลังบันทึกเข้า Firebase...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span>เพิ่มข้อมูลตัวอย่างเข้า Firebase</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* System Policy Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-        {/* Card 1: Mock OCR Engine */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs">
-          <div className="flex items-center gap-2 text-teal-700 font-bold mb-2">
-            <Cpu className="w-4 h-4" />
-            <span>Interactive OCR Simulator</span>
+        <div className="bg-white border border-slate-200/90 rounded-xl p-5">
+          <div className="flex items-center gap-2 text-slate-900 font-semibold mb-2">
+            <Cpu className="w-4 h-4 text-teal-700" />
+            <span>ระบบอ่านเอกสาร OCR & คลาวด์</span>
           </div>
-          <p className="text-slate-600 mb-2">
-            จำลองการสแกนอ่านใบเสร็จ ภาพถ่าย PDF หลายหน้า และ Statement ภายในเบราว์เซอร์ทันที
+          <p className="text-slate-500 mb-3 leading-relaxed">
+            สกัดข้อมูลจากภาพถ่ายใบเสร็จ PDF หลายหน้า และ Bank Statement แล้วบันทึกขึ้นฐานข้อมูล Firebase ทันที
           </p>
-          <ul className="text-slate-500 space-y-1 list-disc list-inside text-[11px]">
-            <li>สร้างรายการสินค้า ยอดก่อนภาษี และ VAT 7% อัตโนมัติ</li>
-            <li>รองรับการแยกใบเสร็จจากไฟล์ PDF หลายหน้า</li>
-            <li>รองรับการนำเข้าโฟลเดอร์ชุดใบเสร็จและ Statement</li>
-            <li>ตรวจสอบข้อมูลซ้ำซ้อนจาก State ปัจจุบันทันที</li>
+          <ul className="text-slate-600 space-y-1.5 list-disc list-inside text-[11px]">
+            <li>แยกยอดก่อนภาษี, VAT 7% และรายการสินค้า</li>
+            <li>รองรับการแยกใบเสร็จจาก PDF หลายหน้า</li>
+            <li>ตรวจสอบเอกสารซ้ำจากเลขที่บิลและยอดรวม</li>
           </ul>
         </div>
 
-        {/* Card 2: In-Memory State Architecture */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs">
-          <div className="flex items-center gap-2 text-teal-700 font-bold mb-2">
-            <Lock className="w-4 h-4" />
-            <span>โครงสร้างข้อมูลจำลอง (In-Memory)</span>
+        <div className="bg-white border border-slate-200/90 rounded-xl p-5">
+          <div className="flex items-center gap-2 text-slate-900 font-semibold mb-2">
+            <Lock className="w-4 h-4 text-teal-700" />
+            <span>ความปลอดภัย Firestore Security Rules</span>
           </div>
-          <p className="text-slate-600 mb-2">
-            ทำงานเป็น Frontend UI Template ล้วน ไม่มีการส่งข้อมูลหรือไฟล์ออกไปยังเซิร์ฟเวอร์ภายนอก
+          <p className="text-slate-500 mb-3 leading-relaxed">
+            ป้องกันสิทธิ์การอ่าน-เขียนข้อมูลทุก Collection ตามบทบาทผู้ใช้และขอบเขตโครงการ
           </p>
-          <ul className="text-slate-500 space-y-1 list-disc list-inside text-[11px]">
-            <li>ข้อมูลทั้งหมดจัดการผ่าน React Context ภายในเซสชัน</li>
-            <li>รองรับการคำนวณ KPI กราฟ Recharts และส่งออกไฟล์</li>
-            <li>สามารถกด "รีเซ็ตข้อมูลจำลองเริ่มต้น" ได้ทุกเมื่อ</li>
+          <ul className="text-slate-600 space-y-1.5 list-disc list-inside text-[11px]">
+            <li>ยืนยันตัวตนผ่าน Google Account (Firebase Auth)</li>
+            <li>ตรวจสอบความถูกต้องของโครงสร้างข้อมูลทุกครั้ง</li>
+            <li>บันทึก Audit Log แบบ Append-only ไม่สามารถแก้ไขย้อนหลังได้</li>
           </ul>
         </div>
 
-        {/* Card 3: RBAC & Master Admin */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs">
-          <div className="flex items-center gap-2 text-blue-700 font-bold mb-2">
-            <ShieldCheck className="w-4 h-4" />
-            <span>Security & Master Admin</span>
+        <div className="bg-white border border-slate-200/90 rounded-xl p-5">
+          <div className="flex items-center gap-2 text-slate-900 font-semibold mb-2">
+            <ShieldCheck className="w-4 h-4 text-teal-700" />
+            <span>บทบาทผู้ใช้และผู้ดูแลระบบ</span>
           </div>
-          <p className="text-slate-600 mb-2">
-            Master Admin เริ่มต้น: <span className="font-mono font-bold text-slate-800">{MASTER_ADMIN_EMAIL}</span>
+          <p className="text-slate-500 mb-3 leading-relaxed">
+            ผู้ดูแลหลัก: <span className="font-mono font-semibold text-slate-800">{MASTER_ADMIN_EMAIL}</span>
           </p>
-          <ul className="text-slate-500 space-y-1 list-disc list-inside text-[11px]">
-            <li>จำลองระบบสิทธิ์บทบาท Admin และ User ครบถ้วน</li>
-            <li>รองรับการเพิ่มผู้ใช้งานและมอบหมายโครงการ</li>
-            <li>บันทึก Audit Log ทุกการแก้ไขและการอนุมัติในเซสชัน</li>
+          <ul className="text-slate-600 space-y-1.5 list-disc list-inside text-[11px]">
+            <li>จัดการสิทธิ์ระดับ Master Admin และพนักงานบันทึกข้อมูล</li>
+            <li>กำหนดขอบเขตโครงการให้ผู้ใช้งานแต่ละคนได้ล่วงหน้า</li>
+            <li>บันทึกทุกการแก้ไขและการอนุมัติใน Audit Log</li>
           </ul>
         </div>
       </div>
 
       {/* Audit Logs Table (Admin Only) */}
       {isAdmin && (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
-          <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
+        <div className="bg-white border border-slate-200/90 rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-200/80 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <History className="w-4 h-4 text-teal-600" />
-              <h3 className="text-sm font-bold text-slate-900">
-                ประวัติการแก้ไขและบันทึกข้อมูล (Audit Log Compliance)
+              <History className="w-4 h-4 text-teal-700" />
+              <h3 className="text-sm font-semibold text-slate-900">
+                ประวัติการแก้ไขและบันทึกข้อมูล (Audit Logs)
               </h3>
             </div>
-            <span className="text-[11px] text-slate-400 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-teal-600" />
-              บันทึก 100 รายการล่าสุด ({auditLogs.length})
+            <span className="text-xs text-slate-500 font-mono tabular-nums">
+              {auditLogs.length} รายการล่าสุด
             </span>
           </div>
 
           <div className="overflow-x-auto max-h-96">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 sticky top-0 uppercase tracking-wider text-[11px]">
+              <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 sticky top-0 text-[11px]">
                 <tr>
-                  <th className="py-2.5 px-3">เวลา (Timestamp)</th>
-                  <th className="py-2.5 px-3">การกระทำ (Action)</th>
-                  <th className="py-2.5 px-3">ประเภท</th>
-                  <th className="py-2.5 px-3">ผู้ดำเนินการ (User)</th>
-                  <th className="py-2.5 px-3">รายละเอียด (Details)</th>
+                  <th className="py-3 px-4">เวลา</th>
+                  <th className="py-3 px-4">การกระทำ</th>
+                  <th className="py-3 px-4">ประเภท</th>
+                  <th className="py-3 px-4">ผู้ดำเนินการ</th>
+                  <th className="py-3 px-4">รายละเอียด</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+              <tbody className="divide-y divide-slate-100 text-xs">
                 {auditLogs.length > 0 ? (
                   auditLogs.map((log) => (
-                    <tr key={log.logId} className="hover:bg-slate-50">
-                      <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap font-sans">
+                    <tr key={log.logId} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-3 px-4 text-slate-500 whitespace-nowrap font-mono tabular-nums text-[11px]">
                         {formatThaiDateTime(log.timestamp)}
                       </td>
-                      <td className="py-2.5 px-3 font-bold text-slate-800 font-sans">
+                      <td className="py-3 px-4 font-semibold text-slate-900">
                         {log.action}
                       </td>
-                      <td className="py-2.5 px-3 text-slate-600">{log.entityType}</td>
-                      <td className="py-2.5 px-3 text-slate-600">{log.userEmail}</td>
-                      <td className="py-2.5 px-3 text-slate-700 font-sans max-w-md truncate">
+                      <td className="py-3 px-4 font-mono text-slate-600">{log.entityType}</td>
+                      <td className="py-3 px-4 font-mono text-slate-600">{log.userEmail}</td>
+                      <td className="py-3 px-4 text-slate-700 max-w-md truncate">
                         {log.changes}
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-slate-400 font-sans text-xs">
+                    <td colSpan={5} className="py-10 text-center text-slate-400 text-xs">
                       ยังไม่มีประวัติการบันทึกในระบบ
                     </td>
                   </tr>

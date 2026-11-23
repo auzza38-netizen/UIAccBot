@@ -13,27 +13,14 @@ import {
   Pie,
   Cell,
   Legend,
-  BarChart,
 } from 'recharts';
 import { Receipt, Project, ExpenseCategory, AppUser } from '../types';
-import { useData } from '../context/DataContext';
 import { formatCurrency, formatThaiDate } from '../utils/formatters';
 import {
   TrendingUp,
   PieChart as PieIcon,
   FolderKanban,
   UserCheck,
-  Calendar,
-  CreditCard,
-  Layers,
-  ArrowUpRight,
-  ArrowDownLeft,
-  Sparkles,
-  BarChart3,
-  CheckCircle2,
-  AlertCircle,
-  Coins,
-  ChevronRight,
 } from 'lucide-react';
 
 interface ChartsSectionProps {
@@ -46,23 +33,22 @@ interface ChartsSectionProps {
 }
 
 const CATEGORY_COLORS = [
-  '#0D9488', // Teal
-  '#0284C7', // Sky Blue
-  '#6366F1', // Indigo
-  '#8B5CF6', // Purple
-  '#EC4899', // Pink
-  '#F59E0B', // Amber
-  '#10B981', // Emerald
-  '#64748B', // Slate
-  '#F43F5E', // Rose
-  '#14B8A6', // Light Teal
+  '#0F766E',
+  '#0284C7',
+  '#334155',
+  '#4F46E5',
+  '#0EA5E9',
+  '#D97706',
+  '#059669',
+  '#64748B',
+  '#E11D48',
+  '#14B8A6',
 ];
 
-// Custom sleek Recharts Tooltip
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-slate-900/95 backdrop-blur-sm border border-slate-700 text-white p-3 rounded-xl shadow-xl text-xs space-y-1.5 min-w-[180px]">
+      <div className="bg-slate-900 border border-slate-700 text-white p-3 rounded-lg shadow-lg text-xs space-y-1.5 min-w-[180px]">
         <p className="font-semibold text-slate-300 border-b border-slate-700/80 pb-1 mb-1">
           {label}
         </p>
@@ -70,14 +56,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           const isCount = entry.name.includes('จำนวน') || entry.dataKey === 'count';
           return (
             <div key={`item-${index}`} className="flex items-center justify-between gap-3">
-              <span className="flex items-center gap-1.5 text-slate-300">
-                <span
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{ backgroundColor: entry.color || entry.fill }}
-                />
-                {entry.name}:
-              </span>
-              <span className="font-mono font-bold text-white tabular-nums">
+              <span className="text-slate-300">{entry.name}</span>
+              <span className="font-mono font-semibold text-white tabular-nums">
                 {isCount ? `${entry.value} รายการ` : formatCurrency(Number(entry.value))}
               </span>
             </div>
@@ -97,13 +77,9 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
   isAdmin,
   groupByDateKey,
 }) => {
-  const { statementRecords, bankAccounts } = useData();
-
-  // Active sub-tab inside Charts Section
   const [activeTab, setActiveTab] = useState<'trend' | 'category' | 'projects' | 'team'>('trend');
   const [trendMode, setTrendMode] = useState<'daily' | 'cumulative'>('daily');
 
-  // 1. Daily Aggregation for Expenses
   const dailyData = useMemo(() => {
     const map: Record<string, { date: string; amount: number; count: number; approvedAmount: number }> = {};
 
@@ -121,7 +97,6 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
 
     const sortedDates = Object.keys(map).sort();
 
-    // Calculate cumulative if needed
     let runningTotal = 0;
     return sortedDates.map((d) => {
       runningTotal += map[d].amount;
@@ -133,8 +108,7 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
     });
   }, [receipts, groupByDateKey]);
 
-  // 2. Today vs Yesterday comparison
-  const { todayAmount, yesterdayAmount, diffAmount, diffPercent } = useMemo(() => {
+  const { todayAmount, diffAmount, diffPercent } = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
     const yesterdayDate = new Date();
     yesterdayDate.setDate(yesterdayDate.getDate() - 1);
@@ -149,10 +123,9 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
 
     const diff = t - y;
     const pct = y > 0 ? (diff / y) * 100 : t > 0 ? 100 : 0;
-    return { todayAmount: t, yesterdayAmount: y, diffAmount: diff, diffPercent: pct };
+    return { todayAmount: t, diffAmount: diff, diffPercent: pct };
   }, [receipts, groupByDateKey]);
 
-  // 3. Category Aggregation
   const categoryData = useMemo(() => {
     const map: Record<string, { amount: number; count: number }> = {};
     const catNameMap: Record<string, string> = {};
@@ -186,7 +159,6 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
     return entries.filter((e) => e.value > 0).sort((a, b) => b.value - a.value);
   }, [receipts, categories]);
 
-  // 4. Payment Method Aggregation
   const paymentMethodData = useMemo(() => {
     const map: Record<string, { amount: number; count: number }> = {};
     const methodNames: Record<string, string> = {
@@ -216,127 +188,121 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
       .sort((a, b) => b.amount - a.amount);
   }, [receipts]);
 
-  // 5. Project Aggregation
   const projectSummaries = useMemo(() => {
-    return projects.map((p) => {
-      const pReceipts = receipts.filter((r) => r.projectId === p.projectId);
-      const totalSpent = pReceipts.reduce((sum, r) => sum + (r.grandTotal || 0), 0);
-      const approvedSpent = pReceipts
-        .filter((r) => r.approvalStatus === 'approved')
-        .reduce((sum, r) => sum + (r.grandTotal || 0), 0);
-      const pendingCount = pReceipts.filter((r) => r.approvalStatus === 'pending').length;
-      const budget = p.budget || 0;
-      const remaining = budget > 0 ? budget - totalSpent : 0;
-      const percentUsed = budget > 0 ? Math.min(Math.round((totalSpent / budget) * 100), 200) : 0;
+    return projects
+      .map((p) => {
+        const pReceipts = receipts.filter((r) => r.projectId === p.projectId);
+        const totalSpent = pReceipts.reduce((sum, r) => sum + (r.grandTotal || 0), 0);
+        const approvedSpent = pReceipts
+          .filter((r) => r.approvalStatus === 'approved')
+          .reduce((sum, r) => sum + (r.grandTotal || 0), 0);
+        const pendingCount = pReceipts.filter((r) => r.approvalStatus === 'pending').length;
+        const budget = p.budget || 0;
+        const remaining = budget > 0 ? budget - totalSpent : 0;
+        const percentUsed = budget > 0 ? Math.min(Math.round((totalSpent / budget) * 100), 200) : 0;
 
-      return {
-        ...p,
-        totalSpent,
-        approvedSpent,
-        receiptsCount: pReceipts.length,
-        pendingCount,
-        remaining,
-        percentUsed,
-      };
-    }).sort((a, b) => b.totalSpent - a.totalSpent);
+        return {
+          ...p,
+          totalSpent,
+          approvedSpent,
+          receiptsCount: pReceipts.length,
+          pendingCount,
+          remaining,
+          percentUsed,
+        };
+      })
+      .sort((a, b) => b.totalSpent - a.totalSpent);
   }, [projects, receipts]);
 
-  // 6. User Activity Aggregation (Master Admin)
   const userActivities = useMemo(() => {
     if (!isAdmin) return [];
 
-    return users.map((u) => {
-      const uReceipts = receipts.filter((r) => r.uploadedBy === u.uid || r.uploadedByEmail === u.email);
-      const totalAmount = uReceipts.reduce((sum, r) => sum + (r.grandTotal || 0), 0);
-      const pendingCount = uReceipts.filter((r) => r.approvalStatus === 'pending').length;
-      const needsReviewCount = uReceipts.filter((r) => r.verificationStatus === 'needs_review').length;
+    return users
+      .map((u) => {
+        const uReceipts = receipts.filter((r) => r.uploadedBy === u.uid || r.uploadedByEmail === u.email);
+        const totalAmount = uReceipts.reduce((sum, r) => sum + (r.grandTotal || 0), 0);
+        const pendingCount = uReceipts.filter((r) => r.approvalStatus === 'pending').length;
+        const needsReviewCount = uReceipts.filter((r) => r.verificationStatus === 'needs_review').length;
 
-      const dates = uReceipts.map((r) => r.uploadDate || r.documentDate).filter(Boolean);
-      dates.sort();
-      const lastDate = dates.length > 0 ? dates[dates.length - 1] : '-';
+        const dates = uReceipts.map((r) => r.uploadDate || r.documentDate).filter(Boolean);
+        dates.sort();
+        const lastDate = dates.length > 0 ? dates[dates.length - 1] : '-';
 
-      return {
-        uid: u.uid,
-        name: u.displayName || u.email,
-        email: u.email,
-        receiptsCount: uReceipts.length,
-        totalAmount,
-        lastDate,
-        pendingCount,
-        needsReviewCount,
-      };
-    }).sort((a, b) => b.totalAmount - a.totalAmount);
+        return {
+          uid: u.uid,
+          name: u.displayName || u.email,
+          email: u.email,
+          receiptsCount: uReceipts.length,
+          totalAmount,
+          lastDate,
+          pendingCount,
+          needsReviewCount,
+        };
+      })
+      .sort((a, b) => b.totalAmount - a.totalAmount);
   }, [users, receipts, isAdmin]);
 
-  // Key Insight Summary
   const topCategory = categoryData[0];
   const topProject = projectSummaries[0];
   const totalExpense = receipts.reduce((sum, r) => sum + (r.grandTotal || 0), 0);
 
   return (
-    <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden">
-      
-      {/* SECTION HEADER & INTERACTIVE TABS */}
-      <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden">
+      {/* Section Header & Segmented Tabs */}
+      <div className="p-4 sm:p-5 border-b border-slate-200/80">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="p-1 rounded-md bg-teal-50 text-teal-700 border border-teal-100">
-                <BarChart3 className="w-4 h-4" />
-              </span>
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-                ศูนย์วิเคราะห์ข้อมูล & แผนภูมิการเงิน (Financial Analytics & Charts)
-              </h2>
-            </div>
+            <h2 className="font-display text-base font-bold text-slate-900 tracking-tight">
+              วิเคราะห์กระแสค่าใช้จ่ายและสัดส่วนบัญชี
+            </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              ติดตามแนวโน้มค่าใช้จ่าย สัดส่วนหมวดหมู่ และการใช้งบประมาณแบบกราฟและแผนภูมิที่อ่านเข้าใจง่าย
+              ติดตามแนวโน้มรายวัน สัดส่วนตามหมวดหมู่ การใช้งบประมาณโครงการ และประสิทธิภาพทีมงาน
             </p>
           </div>
 
-          {/* Interactive Navigation Tabs */}
-          <div className="flex items-center bg-slate-200/70 p-1 rounded-xl text-xs font-semibold overflow-x-auto scrollbar-none">
+          <div className="flex items-center bg-slate-100/80 p-1 rounded-lg text-xs font-medium overflow-x-auto scrollbar-none shrink-0">
             <button
               onClick={() => setActiveTab('trend')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition cursor-pointer whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'trend'
-                  ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                  ? 'bg-white text-slate-900 font-semibold shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <TrendingUp className="w-3.5 h-3.5 text-teal-600" />
+              <TrendingUp className="w-3.5 h-3.5 text-teal-700" />
               <span>แนวโน้มค่าใช้จ่าย</span>
             </button>
 
             <button
               onClick={() => setActiveTab('category')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition cursor-pointer whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'category'
-                  ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                  ? 'bg-white text-slate-900 font-semibold shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <PieIcon className="w-3.5 h-3.5 text-blue-600" />
+              <PieIcon className="w-3.5 h-3.5 text-sky-600" />
               <span>สัดส่วนหมวดหมู่</span>
             </button>
 
             <button
               onClick={() => setActiveTab('projects')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition cursor-pointer whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'projects'
-                  ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                  ? 'bg-white text-slate-900 font-semibold shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <FolderKanban className="w-3.5 h-3.5 text-indigo-600" />
+              <FolderKanban className="w-3.5 h-3.5 text-slate-700" />
               <span>งบโครงการ ({projects.length})</span>
             </button>
 
             {isAdmin && (
               <button
                 onClick={() => setActiveTab('team')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition cursor-pointer whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                   activeTab === 'team'
-                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                    ? 'bg-white text-slate-900 font-semibold shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -348,92 +314,96 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
         </div>
       </div>
 
-      {/* QUICK HIGHLIGHT STRIP */}
-      <div className="bg-gradient-to-r from-teal-50/70 via-slate-50 to-blue-50/50 px-4 sm:px-5 py-2.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex flex-wrap items-center gap-3 sm:gap-6">
+      {/* Unboxed Highlight Summary Strip */}
+      <div className="bg-slate-50/50 px-4 sm:px-5 py-2.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           {topCategory && (
-            <div className="flex items-center gap-1.5 text-slate-700">
-              <span className="text-slate-400">หมวดหมู่ใช้จ่ายสูงสุด:</span>
-              <span className="font-bold text-teal-800 bg-white/80 px-2 py-0.5 rounded-md border border-teal-200/60 shadow-2xs">
-                {topCategory.name} ({topCategory.percent}% · {formatCurrency(topCategory.value)})
+            <span>
+              หมวดหมู่สูงสุด:{' '}
+              <strong className="font-semibold text-slate-900">{topCategory.name}</strong>{' '}
+              <span className="font-mono tabular-nums text-teal-700 font-semibold">
+                ({topCategory.percent}% · {formatCurrency(topCategory.value)})
               </span>
-            </div>
+            </span>
+          )}
+
+          {topCategory && topProject && (
+            <span aria-hidden="true" className="text-slate-300 hidden sm:inline">·</span>
           )}
 
           {topProject && (
-            <div className="flex items-center gap-1.5 text-slate-700">
-              <span className="text-slate-400">โครงการที่มีรายการมากสุด:</span>
-              <span className="font-bold text-indigo-800 bg-white/80 px-2 py-0.5 rounded-md border border-indigo-200/60 shadow-2xs">
-                {topProject.projectCode} ({formatCurrency(topProject.totalSpent)})
+            <span>
+              โครงการยอดสูงสุด:{' '}
+              <strong className="font-semibold text-slate-900">{topProject.projectCode}</strong>{' '}
+              <span className="font-mono tabular-nums text-slate-700 font-semibold">
+                ({formatCurrency(topProject.totalSpent)})
               </span>
-            </div>
+            </span>
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-slate-400">คำนวณตาม:</span>
-          <span className="font-semibold text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200 text-[11px]">
+        <div className="text-[11px] text-slate-500">
+          อ้างอิงตาม:{' '}
+          <span className="font-semibold text-slate-700">
             {groupByDateKey === 'uploadDate' ? 'วันที่บันทึกระบบ' : 'วันที่ในเอกสาร'}
           </span>
         </div>
       </div>
 
-      {/* TAB CONTENT 1: TREND ANALYTICS */}
+      {/* TAB 1: TREND ANALYTICS */}
       {activeTab === 'trend' && (
-        <div className="p-4 sm:p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-teal-600" />
-                กราฟเส้นและแท่งแสดงแนวโน้มค่าใช้จ่าย (Expense Trend & Daily Volume)
+              <h3 className="text-sm font-semibold text-slate-900">
+                แนวโน้มค่าใช้จ่ายและปริมาณเอกสาร
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                แกนซ้าย: มูลค่าเงิน (บาท) · แกนขวา: จำนวนใบเสร็จที่บันทึก
+                แกนซ้ายแสดงมูลค่า (บาท) และแกนขวาแสดงจำนวนใบเสร็จ
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
-              <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-xs font-semibold">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center bg-slate-100/80 p-1 rounded-lg text-xs font-medium">
                 <button
                   onClick={() => setTrendMode('daily')}
-                  className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
+                  className={`px-3 py-1 rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                     trendMode === 'daily'
-                      ? 'bg-white text-slate-900 shadow-2xs'
-                      : 'text-slate-500 hover:text-slate-800'
+                      ? 'bg-white text-slate-900 font-semibold shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   รายวัน
                 </button>
                 <button
                   onClick={() => setTrendMode('cumulative')}
-                  className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
+                  className={`px-3 py-1 rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                     trendMode === 'cumulative'
-                      ? 'bg-white text-slate-900 shadow-2xs'
-                      : 'text-slate-500 hover:text-slate-800'
+                      ? 'bg-white text-slate-900 font-semibold shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   ยอดสะสมรวม
                 </button>
               </div>
 
-              {/* Today vs Yesterday Box */}
-              <div className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-[11px] flex items-center gap-2">
-                <span className="text-slate-400">วันนี้:</span>
-                <span className="font-mono font-bold text-slate-800">
+              <div className="text-xs text-slate-600 flex items-center gap-1.5">
+                <span className="text-slate-400">วันนี้</span>
+                <span className="font-mono font-semibold text-slate-900 tabular-nums">
                   {formatCurrency(todayAmount, false)} ฿
                 </span>
                 <span
-                  className={`font-mono font-semibold ${
-                    diffAmount >= 0 ? 'text-amber-600' : 'text-emerald-600'
+                  className={`font-mono font-semibold tabular-nums ${
+                    diffAmount >= 0 ? 'text-amber-700' : 'text-emerald-700'
                   }`}
                 >
-                  ({diffAmount >= 0 ? '+' : ''}{diffPercent.toFixed(0)}%)
+                  ({diffAmount >= 0 ? '+' : ''}
+                  {diffPercent.toFixed(0)}%)
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Recharts Area + Composed Chart */}
           <div className="h-72 sm:h-80 w-full">
             {dailyData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -443,8 +413,8 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
                 >
                   <defs>
                     <linearGradient id="expenseAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0D9488" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#0D9488" stopOpacity={0.0} />
+                      <stop offset="5%" stopColor="#0F766E" stopOpacity={0.18} />
+                      <stop offset="95%" stopColor="#0F766E" stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
@@ -472,11 +442,8 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
                     axisLine={false}
                   />
                   <Tooltip content={<CustomTooltip />} />
-                  <Legend
-                    wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
-                    iconType="circle"
-                  />
-                  
+                  <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} iconType="circle" />
+
                   {trendMode === 'daily' ? (
                     <>
                       <Area
@@ -484,15 +451,15 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
                         type="monotone"
                         dataKey="amount"
                         name="ยอดเงิน (บาท)"
-                        stroke="#0D9488"
-                        strokeWidth={2.5}
+                        stroke="#0F766E"
+                        strokeWidth={2.25}
                         fill="url(#expenseAreaGradient)"
                       />
                       <Bar
                         yAxisId="amount"
                         dataKey="approvedAmount"
                         name="อนุมัติแล้ว (บาท)"
-                        fill="#12304A"
+                        fill="#0F172A"
                         radius={[4, 4, 0, 0]}
                         barSize={18}
                         opacity={0.85}
@@ -514,8 +481,8 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
                         type="monotone"
                         dataKey="cumulativeAmount"
                         name="ยอดสะสมทั้งหมด (บาท)"
-                        stroke="#0D9488"
-                        strokeWidth={3}
+                        stroke="#0F766E"
+                        strokeWidth={2.5}
                         fill="url(#expenseAreaGradient)"
                       />
                       <Line
@@ -540,24 +507,22 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
         </div>
       )}
 
-      {/* TAB CONTENT 2: CATEGORY & PAYMENT BREAKDOWN */}
+      {/* TAB 2: CATEGORY & PAYMENT BREAKDOWN (Whitespace & Hairline Dividers, Zero Nested Cards) */}
       {activeTab === 'category' && (
-        <div className="p-4 sm:p-6 space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            
+        <div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-slate-200/80">
             {/* Donut Chart (5 cols) */}
-            <div className="lg:col-span-5 bg-slate-50/70 border border-slate-200/80 rounded-2xl p-5 flex flex-col items-center justify-between">
-              <div className="w-full text-left mb-2">
-                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <PieIcon className="w-4 h-4 text-teal-600" />
-                  สัดส่วนตามหมวดหมู่ (Expense Categories)
+            <div className="lg:col-span-5 p-5 sm:p-6 flex flex-col items-center justify-between">
+              <div className="w-full text-left">
+                <h3 className="text-sm font-semibold text-slate-900">
+                  สัดส่วนตามหมวดหมู่บัญชี
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  จำแนกตามโครงสร้างหมวดหมู่บัญชี
+                  จำแนกตามโครงสร้างผังบัญชีค่าใช้จ่าย
                 </p>
               </div>
 
-              <div className="w-full h-64 relative flex items-center justify-center my-2">
+              <div className="w-full h-64 relative flex items-center justify-center my-3">
                 {categoryData.length > 0 ? (
                   <>
                     <ResponsiveContainer width="100%" height="100%">
@@ -585,22 +550,19 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
                           contentStyle={{
                             backgroundColor: '#0F172A',
                             color: '#fff',
-                            borderRadius: '12px',
+                            borderRadius: '8px',
                             fontSize: '12px',
                             border: 'none',
                           }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
-                    {/* Centered Total Readout */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                      <span className="text-[10px] text-slate-400 uppercase font-semibold">
-                        ยอดรวม
-                      </span>
-                      <span className="text-sm sm:text-base font-extrabold font-mono text-slate-900">
+                      <span className="text-[11px] text-slate-400 font-medium">ยอดรวม</span>
+                      <span className="text-base font-bold font-mono tabular-nums text-slate-900">
                         {formatCurrency(totalExpense, false)}
                       </span>
-                      <span className="text-[10px] text-slate-500">฿</span>
+                      <span className="text-[10px] text-slate-500">บาท</span>
                     </div>
                   </>
                 ) : (
@@ -608,51 +570,45 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
                 )}
               </div>
 
-              <div className="w-full text-center text-[11px] text-slate-400 pt-2 border-t border-slate-200">
-                รวมทั้งหมด {categoryData.length} หมวดหมู่ที่มีรายการ
+              <div className="w-full text-center text-xs text-slate-500 pt-3 border-t border-slate-100">
+                รวม {categoryData.length} หมวดหมู่ที่มีรายการ
               </div>
             </div>
 
-            {/* Category Ranking List with Progress Bars (7 cols) */}
-            <div className="lg:col-span-7 flex flex-col justify-between">
+            {/* Ranked List (7 cols) */}
+            <div className="lg:col-span-7 p-5 sm:p-6 flex flex-col justify-between">
               <div>
-                <h3 className="text-sm font-bold text-slate-900 mb-1">
-                  ลำดับหมวดหมู่ค่าใช้จ่ายสูงสุด (Ranked Breakdown)
+                <h3 className="text-sm font-semibold text-slate-900 mb-0.5">
+                  ลำดับหมวดหมู่ค่าใช้จ่ายสูงสุด
                 </h3>
                 <p className="text-xs text-slate-500 mb-3">
                   สัดส่วนและยอดค่าใช้จ่ายเรียงจากมากไปน้อย
                 </p>
 
-                <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
                   {categoryData.map((cat, i) => {
                     const color = CATEGORY_COLORS[i % CATEGORY_COLORS.length];
                     return (
-                      <div
-                        key={cat.id}
-                        className="bg-white border border-slate-200/80 hover:border-slate-300 rounded-xl p-3 transition shadow-2xs"
-                      >
+                      <div key={cat.id} className="py-3 first:pt-1 last:pb-1">
                         <div className="flex items-center justify-between text-xs mb-1.5">
                           <div className="flex items-center gap-2 min-w-0">
                             <span
-                              className="w-3 h-3 rounded-full shrink-0 shadow-2xs"
+                              className="w-1 h-3.5 rounded-full shrink-0"
                               style={{ backgroundColor: color }}
                             />
-                            <span className="font-bold text-slate-800 truncate" title={cat.name}>
+                            <span className="font-semibold text-slate-900 truncate" title={cat.name}>
                               {cat.name}
                             </span>
-                            <span className="text-[10px] text-slate-400 font-mono">
-                              ({cat.count} ใบ)
+                            <span className="text-[11px] text-slate-400 font-mono tabular-nums">
+                              · {cat.count} ใบ
                             </span>
                           </div>
-                          <div className="text-right shrink-0 font-mono">
-                            <span className="font-bold text-slate-900 text-sm">
-                              {formatCurrency(cat.value)}
-                            </span>
-                          </div>
+                          <span className="font-mono font-semibold text-slate-900 tabular-nums shrink-0">
+                            {formatCurrency(cat.value)}
+                          </span>
                         </div>
 
-                        {/* Progress Bar */}
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
                           <div className="flex-1 bg-slate-100 h-1.5 rounded-full overflow-hidden">
                             <div
                               className="h-full rounded-full transition-all duration-300"
@@ -662,7 +618,7 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
                               }}
                             />
                           </div>
-                          <span className="text-[10px] font-bold text-slate-600 font-mono w-10 text-right">
+                          <span className="text-[11px] font-semibold text-slate-600 font-mono tabular-nums w-11 text-right">
                             {cat.percent}%
                           </span>
                         </div>
@@ -671,46 +627,46 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
                   })}
                 </div>
               </div>
+            </div>
+          </div>
 
-              {/* Payment Methods Breakdown mini-strip */}
-              <div className="mt-4 pt-3 border-t border-slate-100">
-                <span className="text-[11px] font-bold text-slate-600 block mb-2">
-                  ช่องทางการชำระเงิน (Payment Methods):
-                </span>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                  {paymentMethodData.map((pm, i) => (
-                    <div key={i} className="bg-slate-50 p-2 rounded-lg border border-slate-200">
-                      <span className="text-[10px] text-slate-400 block truncate">{pm.name}</span>
-                      <span className="font-mono font-bold text-slate-800 text-xs block mt-0.5">
-                        {formatCurrency(pm.amount, false)} ฿
-                      </span>
-                      <span className="text-[10px] text-slate-500">{pm.count} ใบ</span>
-                    </div>
-                  ))}
-                </div>
+          {/* Payment Method Strip (Divided Horizontal Band) */}
+          {paymentMethodData.length > 0 && (
+            <div className="border-t border-slate-200/80 bg-slate-50/40">
+              <div className="px-5 py-2.5 border-b border-slate-100 text-[11px] font-semibold text-slate-500">
+                แยกตามช่องทางการชำระเงิน
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-200/80 text-xs">
+                {paymentMethodData.map((pm, i) => (
+                  <div key={i} className="px-5 py-3.5">
+                    <span className="text-[11px] text-slate-500 block truncate">{pm.name}</span>
+                    <span className="font-mono font-semibold text-slate-900 tabular-nums text-sm block mt-0.5">
+                      {formatCurrency(pm.amount, false)} ฿
+                    </span>
+                    <span className="text-[11px] text-slate-400 font-mono tabular-nums">
+                      {pm.count} ใบ
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
-
-          </div>
+          )}
         </div>
       )}
 
-      {/* TAB CONTENT 3: PROJECT BUDGETS & UTILIZATION */}
+      {/* TAB 3: PROJECT BUDGETS & UTILIZATION */}
       {activeTab === 'projects' && (
         <div className="p-4 sm:p-6 space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <FolderKanban className="w-4 h-4 text-teal-600" />
-                การใช้งบประมาณรายโครงการ (Project Budget vs Actual Spent)
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                เปรียบเทียบยอดค่าใช้จ่ายที่เกิดขึ้นจริงกับกรอบงบประมาณที่ตั้งไว้ของแต่ละโครงการ
-              </p>
-            </div>
+          <div className="pb-2 border-b border-slate-100">
+            <h3 className="text-sm font-semibold text-slate-900">
+              การใช้งบประมาณรายโครงการ
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              เปรียบเทียบยอดค่าใช้จ่ายที่เกิดขึ้นจริงกับกรอบงบประมาณของแต่ละโครงการ
+            </p>
           </div>
 
-          <div className="space-y-3">
+          <div className="divide-y divide-slate-100">
             {projectSummaries.length > 0 ? (
               projectSummaries.map((p) => {
                 const projectBudget = p.budget || 0;
@@ -718,53 +674,50 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
                 const isNearBudget = projectBudget > 0 && p.percentUsed >= 80 && !isOverBudget;
 
                 return (
-                  <div
-                    key={p.projectId}
-                    className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-xl p-4 transition shadow-2xs hover:shadow-xs"
-                  >
+                  <div key={p.projectId} className="py-4 first:pt-1 last:pb-1">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2 text-xs">
                       <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900 text-sm">{p.projectCode}</span>
-                          <span className="text-slate-600 font-medium">{p.clientName}</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono font-semibold text-teal-800 text-sm">
+                            {p.projectCode}
+                          </span>
+                          <span className="text-slate-800 font-medium">{p.clientName}</span>
                           {p.status === 'completed' && (
-                            <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">
-                              ปิดโครงการแล้ว
-                            </span>
+                            <span className="text-[11px] text-slate-500">· ปิดโครงการแล้ว</span>
                           )}
                         </div>
-                        <span className="text-[11px] text-slate-400 mt-0.5 block">
+                        <span className="text-[11px] text-slate-500 mt-0.5 block">
                           บันทึกแล้ว {p.receiptsCount} ใบเสร็จ · อนุมัติแล้ว {formatCurrency(p.approvedSpent)}
                         </span>
                       </div>
 
-                      <div className="text-right sm:shrink-0 font-mono">
-                        <span className="text-[11px] text-slate-400 block font-sans">
-                          ยอดค่าใช้จ่ายจริง:
-                        </span>
-                        <span className="font-bold text-slate-900 text-base">
+                      <div className="sm:text-right sm:shrink-0 font-mono tabular-nums">
+                        <span className="font-semibold text-slate-900 text-base block">
                           {formatCurrency(p.totalSpent)}
                         </span>
                         {projectBudget > 0 && (
-                          <span className="text-[11px] text-slate-400 block">
+                          <span className="text-[11px] text-slate-500 block">
                             จากงบ {formatCurrency(projectBudget)}
                           </span>
                         )}
                       </div>
                     </div>
 
-                    {/* Budget Progress Bar */}
                     {projectBudget > 0 ? (
-                      <div className="space-y-1.5 pt-1">
+                      <div className="space-y-1.5">
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="text-slate-500">
-                            คงเหลือ:{' '}
-                            <strong className={isOverBudget ? 'text-rose-600' : 'text-emerald-700'}>
+                            คงเหลือ{' '}
+                            <strong
+                              className={`font-mono tabular-nums ${
+                                isOverBudget ? 'text-rose-600' : 'text-emerald-700'
+                              }`}
+                            >
                               {formatCurrency(p.remaining)}
                             </strong>
                           </span>
                           <span
-                            className={`font-mono font-bold ${
+                            className={`font-mono font-semibold tabular-nums ${
                               isOverBudget
                                 ? 'text-rose-700'
                                 : isNearBudget
@@ -772,25 +725,25 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
                                 : 'text-teal-700'
                             }`}
                           >
-                            ใช้น้ำหนักงบไปแล้ว {p.percentUsed}%
+                            ใช้ไป {p.percentUsed}%
                           </span>
                         </div>
-                        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all duration-500 ${
+                            className={`h-full rounded-full transition-all duration-300 ${
                               isOverBudget
                                 ? 'bg-rose-500'
                                 : isNearBudget
                                 ? 'bg-amber-500'
-                                : 'bg-gradient-to-r from-teal-500 to-teal-600'
+                                : 'bg-[#0F766E]'
                             }`}
                             style={{ width: `${Math.min(100, Math.max(p.percentUsed, 2))}%` }}
                           />
                         </div>
                       </div>
                     ) : (
-                      <div className="text-[11px] text-slate-400 pt-1">
-                        * ไม่ได้กำหนดกรอบงบประมาณเริ่มต้นไว้
+                      <div className="text-[11px] text-slate-400">
+                        ไม่ได้กำหนดกรอบงบประมาณเริ่มต้น
                       </div>
                     )}
                   </div>
@@ -805,62 +758,55 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
         </div>
       )}
 
-      {/* TAB CONTENT 4: TEAM PERFORMANCE (ADMIN) */}
+      {/* TAB 4: TEAM PERFORMANCE (ADMIN) */}
       {isAdmin && activeTab === 'team' && (
         <div className="p-4 sm:p-6 space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <UserCheck className="w-4 h-4 text-teal-600" />
-                ประสิทธิภาพและการบันทึกงานของทีมงาน (Team Activity & Performance)
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                เฉพาะ Master Admin · ติดตามยอดการบันทึกเอกสารและรายการรออนุมัติรายบุคคล
-              </p>
-            </div>
+          <div className="pb-2 border-b border-slate-100">
+            <h3 className="text-sm font-semibold text-slate-900">
+              สถิติการบันทึกงานของทีมงาน
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              ติดตามจำนวนใบเสร็จ ยอดรวม และรายการรออนุมัติรายบุคคล
+            </p>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+              <thead className="bg-slate-50/80 text-slate-500 font-semibold border-b border-slate-200">
                 <tr>
-                  <th className="py-2.5 px-3">ผู้ใช้งาน</th>
-                  <th className="py-2.5 px-3">อีเมล</th>
-                  <th className="py-2.5 px-3 text-right">จำนวนใบเสร็จ</th>
-                  <th className="py-2.5 px-3 text-right">ยอดค่าใช้จ่ายที่บันทึก</th>
-                  <th className="py-2.5 px-3">บันทึกล่าสุด</th>
-                  <th className="py-2.5 px-3 text-center">รอตรวจสอบ</th>
-                  <th className="py-2.5 px-3 text-center">ต้องแก้ไข OCR</th>
+                  <th className="py-2.5 px-4">ผู้ใช้งาน</th>
+                  <th className="py-2.5 px-4">อีเมล</th>
+                  <th className="py-2.5 px-4 text-right">จำนวนใบเสร็จ</th>
+                  <th className="py-2.5 px-4 text-right">ยอดค่าใช้จ่าย</th>
+                  <th className="py-2.5 px-4">บันทึกล่าสุด</th>
+                  <th className="py-2.5 px-4 text-center">รออนุมัติ</th>
+                  <th className="py-2.5 px-4 text-center">ต้องตรวจ OCR</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {userActivities.map((u) => (
-                  <tr key={u.uid} className="hover:bg-slate-50/70 transition">
-                    <td className="py-3 px-3 font-bold text-slate-900">{u.name}</td>
-                    <td className="py-3 px-3 text-slate-500 font-mono">{u.email}</td>
-                    <td className="py-3 px-3 text-right font-mono tabular-nums font-semibold text-slate-800">
+                  <tr key={u.uid} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-3 px-4 font-semibold text-slate-900">{u.name}</td>
+                    <td className="py-3 px-4 text-slate-500 font-mono">{u.email}</td>
+                    <td className="py-3 px-4 text-right font-mono tabular-nums font-medium text-slate-800">
                       {u.receiptsCount} ใบ
                     </td>
-                    <td className="py-3 px-3 text-right font-mono tabular-nums font-bold text-teal-700">
+                    <td className="py-3 px-4 text-right font-mono tabular-nums font-semibold text-teal-700">
                       {formatCurrency(u.totalAmount)}
                     </td>
-                    <td className="py-3 px-3 text-slate-500">
+                    <td className="py-3 px-4 text-slate-500">
                       {u.lastDate !== '-' ? formatThaiDate(u.lastDate) : '-'}
                     </td>
-                    <td className="py-3 px-3 text-center">
+                    <td className="py-3 px-4 text-center font-mono tabular-nums">
                       {u.pendingCount > 0 ? (
-                        <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-mono font-bold text-[10px]">
-                          {u.pendingCount}
-                        </span>
+                        <span className="font-semibold text-amber-700">{u.pendingCount}</span>
                       ) : (
                         <span className="text-slate-400">-</span>
                       )}
                     </td>
-                    <td className="py-3 px-3 text-center">
+                    <td className="py-3 px-4 text-center font-mono tabular-nums">
                       {u.needsReviewCount > 0 ? (
-                        <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-mono font-bold text-[10px]">
-                          {u.needsReviewCount}
-                        </span>
+                        <span className="font-semibold text-rose-700">{u.needsReviewCount}</span>
                       ) : (
                         <span className="text-slate-400">-</span>
                       )}
@@ -872,7 +818,6 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
           </div>
         </div>
       )}
-
     </div>
   );
 };

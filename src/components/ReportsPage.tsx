@@ -360,156 +360,130 @@ export const ReportsPage: React.FC = () => {
   return (
     <div className="space-y-5">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <FileSpreadsheet className="w-5 h-5 text-teal-600" />
-            ศูนย์ออกรายงาน & ข้อมูลส่งออก (Reports & Export)
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <h1 className="font-display text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            รายงานสรุปและส่งออกบัญชี
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
             สรุปข้อมูลค่าใช้จ่ายและส่งออกเป็นไฟล์ Excel (.xlsx), CSV หรือ PDF สำหรับงานบัญชี
           </p>
         </div>
 
         {/* Export Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <button
             onClick={handleExportExcel}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold shadow-xs cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0F766E] hover:bg-[#0D645D] text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
           >
-            <Download className="w-4 h-4" />
-            Excel (.xlsx)
+            <Download className="w-3.5 h-3.5" />
+            <span>Excel (.xlsx)</span>
           </button>
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-xs cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
           >
-            <Download className="w-4 h-4" />
-            CSV
+            <Download className="w-3.5 h-3.5 text-slate-500" />
+            <span>CSV</span>
           </button>
           <button
             onClick={handleExportPDF}
-            className="flex items-center gap-1.5 px-3 py-2 bg-[#12304A] hover:bg-[#1a4468] text-white rounded-lg text-xs font-semibold shadow-xs cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#0F172A] hover:bg-slate-800 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
           >
-            <Download className="w-4 h-4" />
-            PDF
+            <Download className="w-3.5 h-3.5" />
+            <span>PDF</span>
           </button>
         </div>
       </div>
 
-      {/* User Data Entry Overview Cards (สรุปยอดการคีย์ข้อมูลของแต่ละ User) */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-slate-100">
+      {/* User Data Entry Overview (Clean Divided Financial Grid) */}
+      <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden">
+        <div className="p-4 sm:p-5 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <Users className="w-4 h-4 text-teal-600" />
-              สรุปยอดการคีย์ข้อมูลของแต่ละ User (Data Entry by User)
-            </h3>
+            <h2 className="font-display text-sm font-bold text-slate-900">
+              สรุปยอดการบันทึกข้อมูลรายบุคคล
+            </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              ภาพรวมจำนวนใบเสร็จและยอดเงินค่าใช้จ่ายที่พนักงานแต่ละท่านได้บันทึกเข้าระบบ
+              ผู้คีย์ข้อมูล {activeKeyersCount} คน · รวม{' '}
+              <span className="font-mono tabular-nums font-semibold text-slate-700">
+                {totalKeyedReceipts} ใบ
+              </span>{' '}
+              · ยอดรวม{' '}
+              <span className="font-mono tabular-nums font-semibold text-teal-700">
+                {formatCurrency(totalKeyedAmount)}
+              </span>
             </p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-semibold px-2.5 py-1 bg-teal-50 text-teal-800 rounded-lg font-mono">
-              ผู้คีย์ข้อมูล {activeKeyersCount} คน · รวม {totalKeyedReceipts} ใบ · ยอดรวม {formatCurrency(totalKeyedAmount)}
-            </span>
-            <button
-              onClick={() => setReportType('uploader')}
-              className={`text-xs font-semibold px-3 py-1 rounded-lg transition cursor-pointer ${
-                reportType === 'uploader'
-                  ? 'bg-[#12304A] text-white shadow-2xs'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              ดูตารางแจกแจงละเอียด →
-            </button>
-          </div>
+          <button
+            onClick={() => setReportType('uploader')}
+            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+              reportType === 'uploader'
+                ? 'bg-[#0F172A] text-white'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            ดูตารางแจกแจงละเอียด
+          </button>
         </div>
 
-        {/* Grid of User Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 mt-4">
+        {/* Flat Single-Elevation User Summary Grid */}
+        <div className="p-4 sm:p-5 bg-slate-50/40 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
           {userEntrySummaries.map((u) => {
             const hasData = u.count > 0;
             return (
               <div
                 key={u.email}
                 onClick={() => setReportType('uploader')}
-                className={`rounded-xl border p-3.5 transition-all flex flex-col justify-between cursor-pointer ${
-                  hasData
-                    ? 'bg-gradient-to-b from-white to-slate-50/70 border-slate-200 shadow-2xs hover:shadow-xs hover:border-teal-500'
-                    : 'bg-slate-50/40 border-slate-200/60 opacity-60'
+                className={`bg-white border border-slate-200/80 hover:border-slate-300 rounded-xl p-4 transition-colors flex flex-col justify-between cursor-pointer ${
+                  !hasData ? 'opacity-65' : ''
                 }`}
               >
                 <div>
-                  {/* User Header */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-[#12304A] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
-                        {u.displayName.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-slate-900 text-xs truncate">
-                            {u.displayName}
-                          </span>
-                          <span
-                            className={`text-[9px] px-1.5 py-0.2 rounded font-semibold ${
-                              u.role === 'admin'
-                                ? 'bg-amber-100 text-amber-800'
-                                : 'bg-slate-200 text-slate-700'
-                            }`}
-                          >
-                            {u.role === 'admin' ? 'Master Admin' : 'พนักงาน'}
-                          </span>
-                        </div>
-                        <span className="text-[11px] text-slate-400 truncate block font-mono">
-                          {u.email}
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-semibold text-xs shrink-0">
+                      {u.displayName.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-slate-900 text-xs truncate">
+                          {u.displayName}
+                        </span>
+                        <span className="text-[10px] text-slate-400 shrink-0">
+                          · {u.role === 'admin' ? 'Admin' : 'พนักงาน'}
                         </span>
                       </div>
+                      <span className="text-[11px] text-slate-400 truncate block font-mono">
+                        {u.email}
+                      </span>
                     </div>
                   </div>
 
-                  {/* Keyed Amount Big Number */}
-                  <div className="mt-3 bg-white border border-slate-100 rounded-lg p-2.5">
-                    <span className="text-[11px] text-slate-500 block font-sans">
-                      ยอดสรุปที่คีย์ข้อมูลแล้วทั้งหมด:
-                    </span>
+                  <div className="mt-3 pt-3 border-t border-slate-100">
+                    <span className="text-[11px] text-slate-500 block">ยอดรวมที่บันทึก</span>
                     <div className="flex items-baseline justify-between mt-0.5">
-                      <span className="text-base font-extrabold text-teal-800 font-mono tabular-nums">
+                      <span className="text-base font-bold text-slate-900 font-mono tabular-nums">
                         {formatCurrency(u.totalAmount)}
                       </span>
-                      <span className="text-xs font-semibold text-teal-600 font-mono">
+                      <span className="text-xs font-semibold text-teal-700 font-mono tabular-nums">
                         {u.percentOfTotal.toFixed(1)}%
                       </span>
                     </div>
                   </div>
 
-                  {/* Counts & Status Breakdown */}
-                  <div className="mt-2.5 grid grid-cols-2 gap-1.5 text-[11px]">
-                    <div className="bg-slate-50 rounded px-2 py-1 flex items-center justify-between font-mono">
-                      <span className="text-slate-500 font-sans">จำนวนคีย์:</span>
-                      <strong className="text-slate-800">{u.count} ใบ</strong>
-                    </div>
-                    <div className="bg-emerald-50/70 rounded px-2 py-1 flex items-center justify-between font-mono">
-                      <span className="text-emerald-700 font-sans">อนุมัติแล้ว:</span>
-                      <strong className="text-emerald-700">{u.approvedCount} ใบ</strong>
-                    </div>
+                  <div className="mt-2.5 flex items-center justify-between text-[11px] font-mono tabular-nums text-slate-600">
+                    <span>คีย์ {u.count} ใบ</span>
+                    <span className="text-emerald-700">อนุมัติ {u.approvedCount}</span>
+                    {u.pendingCount > 0 && (
+                      <span className="text-amber-700">รอ {u.pendingCount}</span>
+                    )}
                   </div>
-
-                  {u.pendingCount > 0 && (
-                    <div className="mt-1.5 text-[10px] text-amber-700 bg-amber-50 rounded px-2 py-0.5 flex items-center justify-between font-mono">
-                      <span>รอตรวจสอบ/อนุมัติ:</span>
-                      <strong>{u.pendingCount} ใบ</strong>
-                    </div>
-                  )}
                 </div>
 
-                {/* Footer date & average */}
-                <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-mono tabular-nums">
                   <span>
                     {u.avgPerReceipt > 0 ? `เฉลี่ย ${formatCurrency(u.avgPerReceipt)}/ใบ` : 'ยังไม่มีการคีย์'}
                   </span>
-                  <span>{u.lastUploadDate ? `ล่าสุด ${formatThaiDate(u.lastUploadDate)}` : '-'}</span>
+                  <span>{u.lastUploadDate ? formatThaiDate(u.lastUploadDate) : '-'}</span>
                 </div>
               </div>
             );
@@ -517,16 +491,16 @@ export const ReportsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Report Selection Tabs (1 to 6) */}
-      <div className="bg-white border border-slate-200 rounded-xl p-2 flex flex-wrap gap-1 shadow-2xs text-xs">
+      {/* Report Selection Segmented Tabs */}
+      <div className="bg-slate-100/90 border border-slate-200/70 rounded-xl p-1 flex flex-wrap gap-1 text-xs">
         {[
-          { id: 'daily', label: '1. ค่าใช้จ่ายประจำวัน', icon: Calendar },
-          { id: 'monthly', label: '2. ค่าใช้จ่ายรายเดือน', icon: Calendar },
+          { id: 'daily', label: '1. รายวัน', icon: Calendar },
+          { id: 'monthly', label: '2. รายเดือน', icon: Calendar },
           { id: 'project', label: '3. แยกตามโครงการ', icon: FolderKanban },
           { id: 'category', label: '4. แยกตามหมวดหมู่', icon: Tags },
-          { id: 'uploader', label: '5. สรุปยอดการคีย์ข้อมูลของแต่ละ User', icon: Users },
-          { id: 'budget', label: '6. ยอดสรุปงบตามลูกค้า/หน่วยงาน', icon: FileSpreadsheet },
-          { id: 'items', label: '7. รายการสินค้า/บริการ (Line Items)', icon: Package },
+          { id: 'uploader', label: '5. ยอดคีย์รายบุคคล', icon: Users },
+          { id: 'budget', label: '6. สรุปงบลูกค้า/หน่วยงาน', icon: FileSpreadsheet },
+          { id: 'items', label: '7. รายการสินค้า (Line Items)', icon: Package },
         ].map((tab) => {
           const Icon = tab.icon;
           const active = reportType === tab.id;
@@ -534,10 +508,10 @@ export const ReportsPage: React.FC = () => {
             <button
               key={tab.id}
               onClick={() => setReportType(tab.id as any)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer whitespace-nowrap ${
                 active
-                  ? 'bg-[#12304A] text-white font-bold shadow-xs'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  ? 'bg-white text-slate-900 font-semibold shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -548,12 +522,12 @@ export const ReportsPage: React.FC = () => {
       </div>
 
       {/* Report Display Table */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
-        <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
+      <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-200/80 flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold text-slate-900">{reportTitle}</h3>
-            <span className="text-[11px] text-slate-400">
-              ข้อมูลอ้างอิงจากตัวกรอง: {scopedReceipts.length} รายการใบเสร็จ
+            <h3 className="font-display text-sm font-bold text-slate-900">{reportTitle}</h3>
+            <span className="text-[11px] text-slate-500">
+              ข้อมูลอ้างอิงตามตัวกรอง: {scopedReceipts.length} รายการใบเสร็จ
             </span>
           </div>
         </div>
@@ -676,7 +650,7 @@ export const ReportsPage: React.FC = () => {
                     <td className="py-2.5 px-4 text-center text-slate-400 font-mono">{idx + 1}</td>
                     <td className="py-2.5 px-4 font-sans font-medium text-slate-800">
                       <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-[#12304A] text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                        <div className="w-6 h-6 rounded-full bg-[#0F172A] text-white flex items-center justify-center text-[10px] font-bold shrink-0">
                           {row.displayName?.charAt(0).toUpperCase() || 'U'}
                         </div>
                         <div>

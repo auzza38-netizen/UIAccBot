@@ -536,6 +536,8 @@ export const CurrentAssetsPage: React.FC<CurrentAssetsPageProps> = ({
     });
   }, [allTransactions, selectedAccountId, selectedProjectFilter, searchQuery]);
 
+  const [isSavingAccount, setIsSavingAccount] = useState<boolean>(false);
+
   // Handle open Account Modal
   const handleOpenAccountModal = (acc?: BankAccount) => {
     setFormError(null);
@@ -581,6 +583,7 @@ export const CurrentAssetsPage: React.FC<CurrentAssetsPageProps> = ({
       return;
     }
 
+    setIsSavingAccount(true);
     try {
       const selectedProj = accountForm.projectId ? projectsMap[accountForm.projectId] : undefined;
       const selectedProjName = selectedProj ? getProjectDisplayName(selectedProj) : '';
@@ -610,6 +613,8 @@ export const CurrentAssetsPage: React.FC<CurrentAssetsPageProps> = ({
         title: 'บันทึกบัญชีไม่สำเร็จ',
         message: err.message || 'เกิดข้อผิดพลาดในการบันทึกบัญชี',
       });
+    } finally {
+      setIsSavingAccount(false);
     }
   };
 
@@ -1437,154 +1442,170 @@ export const CurrentAssetsPage: React.FC<CurrentAssetsPageProps> = ({
       {/* Header & Quick Action Buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2.5">
-            <Landmark className="w-6 h-6 text-teal-600" />
-            บันทึกสินทรัพย์หมุนเวียน & รายการเดินบัญชี (Current Assets & Statement)
+          <h2 className="font-display text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight">
+            สินทรัพย์หมุนเวียน & รายการเดินบัญชี
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            จัดการบัญชีเงินฝากธนาคาร สินทรัพย์สภาพคล่อง และอ่านข้อมูลรายงาน Statement ด้วย AI อัตโนมัติ
+          <p className="text-xs text-slate-500 mt-1">
+            จัดการบัญชีเงินฝากธนาคาร สินทรัพย์สภาพคล่อง และสกัดข้อมูล Statement อัตโนมัติ
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleOpenFolderUpload}
-            className="flex items-center gap-2 px-3.5 py-2.5 bg-white hover:bg-slate-50 text-teal-800 border border-teal-200 rounded-xl text-xs font-bold shadow-2xs transition active:scale-95 cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-medium transition-colors cursor-pointer"
             title="อัปโหลดไฟล์ Statement ทั้งโฟลเดอร์"
           >
-            <FolderUp className="w-4 h-4 text-teal-600" />
-            อัปโหลดโฟลเดอร์ Statement
+            <FolderUp className="w-3.5 h-3.5 text-slate-500" />
+            อัปโหลดโฟลเดอร์
           </button>
 
           <button
             onClick={() => handleOpenStatementScan()}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-teal-700 to-teal-800 hover:from-teal-800 hover:to-teal-900 text-white rounded-xl text-xs font-bold shadow-sm transition active:scale-95 cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-[#0F766E] hover:bg-[#0D645D] text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
           >
-            <Sparkles className="w-4 h-4 text-teal-200" />
+            <Sparkles className="w-3.5 h-3.5" />
             อ่าน Statement ด้วย AI
           </button>
 
           <button
             onClick={() => handleOpenAccountModal()}
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-[#12304A] hover:bg-[#1a4468] text-white rounded-xl text-xs font-bold shadow-sm transition active:scale-95 cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
-            + เพิ่มบัญชีธนาคาร
+            <Plus className="w-3.5 h-3.5 text-teal-700" />
+            เพิ่มบัญชีธนาคาร
           </button>
         </div>
       </div>
 
-      {/* KPI Overview Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Total Current Assets */}
-        <div className="bg-gradient-to-br from-[#12304A] to-slate-900 text-white p-5 rounded-2xl shadow-sm border border-slate-700/50">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-teal-200">
-              {selectedProjectFilter === 'all'
-                ? 'สินทรัพย์หมุนเวียนรวม'
-                : selectedProjectFilter === 'general'
-                ? 'สินทรัพย์หมุนเวียน (ส่วนกลาง)'
-                : `สินทรัพย์หมุนเวียน (${getProjectDisplayName(projectsMap[selectedProjectFilter], 'โครงการ')})`}
-            </span>
-            <Wallet className="w-5 h-5 text-teal-300" />
+      {/* Unified 4-Column Financial Ledger Strip */}
+      <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 lg:divide-x divide-slate-200/80">
+        {/* Cell 1: Total Current Assets */}
+        <div className="p-5 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[12px] font-medium text-slate-500">
+                {selectedProjectFilter === 'all'
+                  ? 'สินทรัพย์หมุนเวียนรวม'
+                  : selectedProjectFilter === 'general'
+                  ? 'สินทรัพย์หมุนเวียน (ส่วนกลาง)'
+                  : `สินทรัพย์ (${getProjectDisplayName(projectsMap[selectedProjectFilter], 'โครงการ')})`}
+              </span>
+              <span className="text-[11px] font-mono text-emerald-700 font-medium">THB</span>
+            </div>
+            <div className="mt-2.5 text-[28px] leading-none font-bold text-slate-900 font-mono tabular-nums tracking-tight">
+              {formatCurrency(selectedProjectFilter === 'all' ? totalAssetsBalance : filteredTotalBalance)}
+            </div>
           </div>
-          <div className="text-2xl font-bold font-mono tracking-tight">
-            {formatCurrency(selectedProjectFilter === 'all' ? totalAssetsBalance : filteredTotalBalance)}
-          </div>
-          <div className="text-[11px] text-slate-300 mt-2 flex items-center justify-between">
-            <span>
-              {selectedProjectFilter === 'all'
-                ? `จากทั้งหมด ${bankAccounts.length} บัญชี / สภาพคล่อง`
-                : `${filteredBankAccounts.length} บัญชีในโครงการนี้ (รวมทุกโครงการ: ${formatCurrency(totalAssetsBalance)})`}
-            </span>
-          </div>
-        </div>
-
-        {/* Card 2: Total Bank Accounts */}
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-500">บัญชีธนาคารที่ลงทะเบียน</span>
-            <Building2 className="w-5 h-5 text-teal-600" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900 font-mono">
-            {bankAccounts.length} <span className="text-xs font-normal text-slate-500">บัญชี</span>
-          </div>
-          <div className="text-[11px] text-slate-400 mt-2">
-            อัปเดตยอดคงเหลือตามรายงาน Statement ล่าสุด
+          <div className="mt-3 pt-2.5 border-t border-slate-100 text-[11px] text-slate-500">
+            {selectedProjectFilter === 'all'
+              ? `จากทั้งหมด ${bankAccounts.length} บัญชีสภาพคล่อง`
+              : `${filteredBankAccounts.length} บัญชีในโครงการ · รวม ${formatCurrency(totalAssetsBalance)}`}
           </div>
         </div>
 
-        {/* Card 3: Inflows (Credits) */}
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-500">รายการเดินบัญชีทั้งหมด</span>
-            <FileSpreadsheet className="w-5 h-5 text-blue-600" />
+        {/* Cell 2: Total Bank Accounts */}
+        <div className="p-5 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[12px] font-medium text-slate-500">บัญชีธนาคารที่ลงทะเบียน</span>
+              <Building2 className="w-3.5 h-3.5 text-slate-400" />
+            </div>
+            <div className="mt-2.5 text-[28px] leading-none font-bold text-slate-900 font-mono tabular-nums tracking-tight">
+              {bankAccounts.length} <span className="text-xs font-normal text-slate-500">บัญชี</span>
+            </div>
           </div>
-          <div className="text-2xl font-bold text-slate-900 font-mono">
-            {allTransactions.length} <span className="text-xs font-normal text-slate-500">รายการ</span>
+          <div className="mt-3 pt-2.5 border-t border-slate-100 text-[11px] text-slate-500">
+            อัปเดตยอดคงเหลือตาม Statement ล่าสุด
           </div>
-          <div className="text-[11px] text-slate-400 mt-2 flex items-center justify-between gap-2">
-            <span>จาก Statement ที่นำเข้า {statementRecords.length} ฉบับ</span>
+        </div>
+
+        {/* Cell 3: Transactions & Statements */}
+        <div className="p-5 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[12px] font-medium text-slate-500">รายการเดินบัญชีทั้งหมด</span>
+              <FileSpreadsheet className="w-3.5 h-3.5 text-slate-400" />
+            </div>
+            <div className="mt-2.5 text-[28px] leading-none font-bold text-slate-900 font-mono tabular-nums tracking-tight">
+              {allTransactions.length} <span className="text-xs font-normal text-slate-500">รายการ</span>
+            </div>
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between gap-2">
+            <span>จาก Statement {statementRecords.length} ฉบับ</span>
             {statementRecords.length > 0 && (
               <button
                 onClick={handleRepairAllStatements}
                 disabled={isRepairing}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 hover:bg-teal-100 text-teal-700 font-semibold text-[10px] border border-teal-200 transition cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center gap-1 text-teal-700 hover:text-teal-800 font-semibold text-[11px] transition cursor-pointer disabled:opacity-50"
                 title="คำนวณยอดเดินบัญชีทั้งหมดและจัดระเบียบรายการ"
               >
-                <RefreshCw className={`w-2.5 h-2.5 ${isRepairing ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-3 h-3 ${isRepairing ? 'animate-spin' : ''}`} />
                 {isRepairing ? 'กำลังจัดระเบียบ...' : 'จัดระเบียบยอด'}
               </button>
             )}
           </div>
         </div>
 
-        {/* Card 4: Quick Statement OCR status */}
-        <div className="bg-teal-50/70 border border-teal-200 p-5 rounded-2xl shadow-xs">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-teal-900">AI Statement OCR</span>
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+        {/* Cell 4: AI Statement OCR Capabilities */}
+        <div className="p-5 flex flex-col justify-between bg-slate-50/40">
+          <div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[12px] font-medium text-teal-800">AI Statement OCR</span>
+              <Sparkles className="w-3.5 h-3.5 text-teal-600" />
+            </div>
+            <p className="mt-2.5 text-xs text-slate-600 leading-relaxed">
+              รองรับไฟล์ Statement PDF หลายหน้าและสลิป สกัดเลขบัญชี ธนาคาร และยอดเงินคงเหลืออัตโนมัติ
+            </p>
           </div>
-          <p className="text-xs text-teal-950 leading-relaxed">
-            รองรับไฟล์ Statement (PDF หลายหน้า / สลิป / รายการเดินบัญชี) สกัดเลขบัญชี ชื่อธนาคาร และยอดเงินอัตโนมัติ
-          </p>
+          <div className="mt-3 pt-2.5 border-t border-slate-100 text-[11px]">
+            <button
+              onClick={() => handleOpenStatementScan()}
+              className="text-teal-700 hover:text-teal-800 font-semibold cursor-pointer"
+            >
+              สแกนไฟล์ Statement →
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Tabs navigation */}
-      <div className="flex border-b border-slate-200 gap-6 text-sm font-semibold text-slate-600">
+      <div className="flex border-b border-slate-200 gap-6 text-xs sm:text-sm font-medium text-slate-500">
         <button
           onClick={() => setActiveSubTab('accounts')}
-          className={`pb-3 border-b-2 transition cursor-pointer flex items-center gap-2 ${
+          className={`pb-3 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
             activeSubTab === 'accounts'
-              ? 'border-teal-600 text-teal-700 font-bold'
+              ? 'border-[#0F766E] text-slate-900 font-semibold'
               : 'border-transparent hover:text-slate-900'
           }`}
         >
           <Building2 className="w-4 h-4" />
-          บัญชีธนาคาร & สินทรัพย์ ({bankAccounts.length})
+          <span>บัญชีธนาคาร & สินทรัพย์</span>
+          <span className="font-mono text-xs text-slate-400 tabular-nums">({bankAccounts.length})</span>
         </button>
         <button
           onClick={() => setActiveSubTab('transactions')}
-          className={`pb-3 border-b-2 transition cursor-pointer flex items-center gap-2 ${
+          className={`pb-3 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
             activeSubTab === 'transactions'
-              ? 'border-teal-600 text-teal-700 font-bold'
+              ? 'border-[#0F766E] text-slate-900 font-semibold'
               : 'border-transparent hover:text-slate-900'
           }`}
         >
           <CreditCard className="w-4 h-4" />
-          รายการเดินบัญชี Statement ({allTransactions.length})
+          <span>รายการเดินบัญชี Statement</span>
+          <span className="font-mono text-xs text-slate-400 tabular-nums">({allTransactions.length})</span>
         </button>
         <button
           onClick={() => setActiveSubTab('statements')}
-          className={`pb-3 border-b-2 transition cursor-pointer flex items-center gap-2 ${
+          className={`pb-3 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
             activeSubTab === 'statements'
-              ? 'border-teal-600 text-teal-700 font-bold'
+              ? 'border-[#0F766E] text-slate-900 font-semibold'
               : 'border-transparent hover:text-slate-900'
           }`}
         >
           <FileText className="w-4 h-4" />
-          ไฟล์รายงาน Statement ({statementRecords.length})
+          <span>ไฟล์รายงาน Statement</span>
+          <span className="font-mono text-xs text-slate-400 tabular-nums">({statementRecords.length})</span>
         </button>
       </div>
 
@@ -1592,18 +1613,18 @@ export const CurrentAssetsPage: React.FC<CurrentAssetsPageProps> = ({
       {activeSubTab === 'accounts' && (
         <div className="space-y-4">
           {/* Project & Search Filter Bar for Accounts */}
-          <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
               {/* Project Filter */}
               <div className="flex items-center gap-1.5">
-                <span className="font-semibold text-slate-600 flex items-center gap-1">
+                <span className="font-medium text-slate-500 flex items-center gap-1">
                   <FolderKanban className="w-3.5 h-3.5 text-teal-600" />
                   โครงการ:
                 </span>
                 <select
                   value={selectedProjectFilter}
                   onChange={(e) => setSelectedProjectFilter(e.target.value)}
-                  className="px-3 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium"
+                  className="px-3 py-1.5 border border-slate-200 rounded-lg bg-white text-slate-900 font-medium"
                 >
                   <option value="all">-- ทุกโครงการ ({bankAccounts.length}) --</option>
                   <option value="general">ส่วนกลาง / ไม่ระบุโครงการ ({bankAccounts.filter((b) => !b.projectId).length})</option>
@@ -1626,18 +1647,18 @@ export const CurrentAssetsPage: React.FC<CurrentAssetsPageProps> = ({
                   placeholder="ค้นหาชื่อบัญชี, เลขที่บัญชี, ธนาคาร..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-teal-600"
+                  className="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-teal-600"
                 />
               </div>
             </div>
 
-            <div className="text-[11px] text-slate-500 font-medium">
-              แสดง {filteredBankAccounts.length} จาก {bankAccounts.length} บัญชี
+            <div className="text-[11px] text-slate-500 font-mono tabular-nums">
+              แสดง {filteredBankAccounts.length} / {bankAccounts.length} บัญชี
             </div>
           </div>
 
           {filteredBankAccounts.length === 0 ? (
-            <div className="p-12 text-center bg-white rounded-2xl border border-slate-200">
+            <div className="p-12 text-center bg-white rounded-xl border border-slate-200/80">
               <Landmark className="w-12 h-12 text-slate-300 mx-auto mb-3" />
               {bankAccounts.length > 0 ? (
                 <>
@@ -1657,7 +1678,7 @@ export const CurrentAssetsPage: React.FC<CurrentAssetsPageProps> = ({
                         setSelectedProjectFilter('all');
                         setSearchQuery('');
                       }}
-                      className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl cursor-pointer"
+                      className="px-4 py-2 bg-[#0F766E] hover:bg-[#0D645D] text-white text-xs font-semibold rounded-lg cursor-pointer transition-colors"
                     >
                       ล้างตัวกรองทั้งหมด (แสดงทั้ง {bankAccounts.length} บัญชี)
                     </button>
@@ -1665,14 +1686,14 @@ export const CurrentAssetsPage: React.FC<CurrentAssetsPageProps> = ({
                 </>
               ) : (
                 <>
-                  <h3 className="text-sm font-bold text-slate-700">ยังไม่พบบัญชีสินทรัพย์หมุนเวียนในระบบ</h3>
+                  <h3 className="font-display text-sm font-semibold text-slate-800">ยังไม่พบบัญชีสินทรัพย์หมุนเวียนในระบบ</h3>
                   <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto leading-relaxed">
                     สามารถกดเพิ่มบัญชีธนาคารใหม่ หรือนำเข้าไฟล์ Statement เพื่อสร้างรายการเดินบัญชีอัตโนมัติได้ทันที
                   </p>
-                  <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
+                  <div className="flex flex-wrap items-center justify-center gap-2.5 mt-4">
                     <button
                       onClick={() => handleOpenAccountModal()}
-                      className="px-4 py-2 bg-[#12304A] hover:bg-[#1a4468] text-white text-xs font-bold rounded-xl cursor-pointer"
+                      className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 text-xs font-semibold rounded-lg cursor-pointer transition-colors"
                     >
                       + เพิ่มบัญชีธนาคาร
                     </button>
@@ -1701,44 +1722,37 @@ export const CurrentAssetsPage: React.FC<CurrentAssetsPageProps> = ({
                 return (
                   <div
                     key={acc.id}
-                    className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs hover:border-teal-500/50 hover:shadow-sm transition-all flex flex-col justify-between"
+                    className="bg-white border border-slate-200/80 rounded-xl p-5 hover:border-slate-300 transition-colors flex flex-col justify-between"
                   >
                     <div>
                       {/* Bank Tag, Project Tag, and Action */}
                       <div className="flex items-center justify-between gap-2 mb-3">
-                        <div className="flex flex-wrap items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-2 min-w-0">
                           <span
-                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold inline-flex items-center gap-1.5 shadow-2xs"
+                            className="px-2 py-0.5 rounded-md text-[11px] font-semibold inline-flex items-center gap-1.5"
                             style={{ backgroundColor: bankMeta.color, color: bankMeta.textColor }}
                           >
-                            <Building2 className="w-3.5 h-3.5" />
+                            <Building2 className="w-3 h-3" />
                             {acc.bankName}
                           </span>
 
-                          {/* Project Tag */}
-                          {projName ? (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200 inline-flex items-center gap-1 max-w-[140px] truncate">
-                              <FolderKanban className="w-3 h-3 text-teal-600 shrink-0" />
-                              <span className="truncate">{projName}</span>
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 text-slate-600">
-                              ส่วนกลาง
-                            </span>
-                          )}
+                          {/* Project Label */}
+                          <span className="text-[11px] text-slate-500 truncate max-w-[140px]">
+                            · {projName || 'ส่วนกลาง'}
+                          </span>
                         </div>
 
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 shrink-0">
                           <button
                             onClick={() => handleOpenAccountModal(acc)}
-                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                             title="แก้ไขข้อมูลบัญชี"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => setAccountToDelete(acc)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                             title="ลบบัญชี"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1747,27 +1761,27 @@ export const CurrentAssetsPage: React.FC<CurrentAssetsPageProps> = ({
                       </div>
 
                       {/* Account Number & Name */}
-                      <div className="mb-4">
-                        <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                      <div className="mb-3.5">
+                        <div className="text-[11px] font-medium text-slate-400">
                           เลขที่บัญชี
                         </div>
-                        <div className="text-base font-bold font-mono text-slate-900 tracking-wide mt-0.5">
+                        <div className="text-base font-bold font-mono tabular-nums text-slate-900 tracking-wide mt-0.5">
                           {acc.accountNumber}
                         </div>
-                        <div className="text-xs text-slate-700 font-medium mt-1 truncate">
+                        <div className="text-xs text-slate-600 font-medium mt-0.5 truncate">
                           {acc.accountName} {acc.branchName ? `(สาขา ${acc.branchName})` : ''}
                         </div>
                       </div>
 
-                      {/* Current Balance */}
-                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 mb-3">
-                        <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold mb-1">
+                      {/* Hairline Current Balance Strip */}
+                      <div className="py-3 border-y border-slate-100 mb-3">
+                        <div className="flex items-center justify-between text-[11px] text-slate-500 mb-1">
                           <span>ยอดเงินคงเหลือปัจจุบัน</span>
-                          <span className="text-slate-400 font-mono text-[10px]">
-                            อัปเดต: {acc.lastUpdatedDate ? formatThaiDate(acc.lastUpdatedDate) : '-'}
+                          <span className="text-slate-400 font-mono tabular-nums text-[10px]">
+                            {acc.lastUpdatedDate ? formatThaiDate(acc.lastUpdatedDate) : '-'}
                           </span>
                         </div>
-                        <div className="text-xl font-bold font-mono text-teal-900">
+                        <div className="text-xl font-bold font-mono tabular-nums text-slate-900">
                           {formatCurrency(acc.currentBalance)}
                         </div>
                       </div>
@@ -1807,18 +1821,18 @@ export const CurrentAssetsPage: React.FC<CurrentAssetsPageProps> = ({
       {activeSubTab === 'transactions' && (
         <div className="space-y-4">
           {/* Filter Bar */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex flex-wrap items-center gap-3 flex-1 min-w-[280px]">
               {/* Project Filter */}
               <div className="flex items-center gap-1.5">
-                <span className="font-semibold text-slate-600 flex items-center gap-1">
+                <span className="font-medium text-slate-500 flex items-center gap-1">
                   <FolderKanban className="w-3.5 h-3.5 text-teal-600" />
                   โครงการ:
                 </span>
                 <select
                   value={selectedProjectFilter}
                   onChange={(e) => setSelectedProjectFilter(e.target.value)}
-                  className="px-3 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium"
+                  className="px-3 py-1.5 border border-slate-200 rounded-lg bg-white text-slate-900 font-medium"
                 >
                   <option value="all">-- ทุกโครงการ --</option>
                   <option value="general">ส่วนกลาง / ไม่ระบุโครงการ</option>
@@ -1832,11 +1846,11 @@ export const CurrentAssetsPage: React.FC<CurrentAssetsPageProps> = ({
 
               {/* Account Selector */}
               <div className="flex items-center gap-1.5">
-                <span className="font-semibold text-slate-600">บัญชี:</span>
+                <span className="font-medium text-slate-500">บัญชี:</span>
                 <select
                   value={selectedAccountId}
                   onChange={(e) => setSelectedAccountId(e.target.value)}
-                  className="px-3 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium"
+                  className="px-3 py-1.5 border border-slate-200 rounded-lg bg-white text-slate-900 font-medium"
                 >
                   <option value="all">-- ทุกบัญชีธนาคาร --</option>
                   {bankAccounts.map((b) => (
@@ -1855,7 +1869,7 @@ export const CurrentAssetsPage: React.FC<CurrentAssetsPageProps> = ({
                   placeholder="ค้นหารายการ, เลขอ้างอิง, คำอธิบาย, โครงการ..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-teal-600"
+                  className="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-teal-600"
                 />
               </div>
             </div>
@@ -1864,7 +1878,7 @@ export const CurrentAssetsPage: React.FC<CurrentAssetsPageProps> = ({
               <button
                 onClick={handleRepairAllStatements}
                 disabled={isRepairing || statementRecords.length === 0}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 hover:bg-teal-100 disabled:opacity-50 text-teal-800 border border-teal-200 rounded-lg font-semibold transition cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 disabled:opacity-50 text-teal-800 border border-slate-200 rounded-lg font-medium transition-colors cursor-pointer"
                 title="คำนวณยอดเงินเข้า-ออกและลบ Statement ฉบับซ้ำอัตโนมัติ"
               >
                 {isRepairing ? (
@@ -1878,7 +1892,7 @@ export const CurrentAssetsPage: React.FC<CurrentAssetsPageProps> = ({
               <button
                 onClick={handleExportCSV}
                 disabled={filteredTransactions.length === 0}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 rounded-lg font-semibold transition cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 disabled:opacity-50 text-slate-700 border border-slate-200 rounded-lg font-medium transition-colors cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
                 ส่งออก CSV
@@ -1887,10 +1901,10 @@ export const CurrentAssetsPage: React.FC<CurrentAssetsPageProps> = ({
           </div>
 
           {/* Transactions Table */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+          <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden">
             <div className="overflow-x-auto max-h-[550px]">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 sticky top-0 uppercase tracking-wider text-[11px] z-10">
+                <thead className="bg-slate-50/80 text-slate-500 font-semibold border-b border-slate-200 sticky top-0 text-[11px] z-10">
                   <tr>
                     <th className="py-3 px-3.5">วันที่ & เวลา</th>
                     <th className="py-3 px-3.5">โครงการ</th>
@@ -2123,52 +2137,45 @@ export const CurrentAssetsPage: React.FC<CurrentAssetsPageProps> = ({
                 .map((stmt) => (
                   <div
                     key={stmt.id}
-                    className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col justify-between"
+                    className="bg-white border border-slate-200/80 rounded-xl p-5 flex flex-col justify-between"
                   >
                     <div>
-                      <div className="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-slate-100">
+                      <div className="flex items-center justify-between gap-2 mb-3 pb-2.5 border-b border-slate-100">
                         <div className="flex items-center gap-2 min-w-0">
                           <FileText className="w-4 h-4 text-teal-600 shrink-0" />
-                          <span className="font-bold text-xs text-slate-900 truncate">{stmt.fileName || 'รายงาน Statement'}</span>
-                          {stmt.projectId ? (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200 inline-flex items-center gap-1 shrink-0">
-                              <FolderKanban className="w-3 h-3 text-teal-600" />
-                              <span>{getProjectDisplayName(projectsMap[stmt.projectId], stmt.projectName || 'โครงการ')}</span>
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 text-slate-600 shrink-0">
-                              ส่วนกลาง
-                            </span>
-                          )}
+                          <span className="font-semibold text-xs text-slate-900 truncate">{stmt.fileName || 'รายงาน Statement'}</span>
+                          <span className="text-[11px] text-slate-400 shrink-0 truncate">
+                            · {stmt.projectId ? getProjectDisplayName(projectsMap[stmt.projectId], stmt.projectName || 'โครงการ') : 'ส่วนกลาง'}
+                          </span>
                         </div>
-                        <span className="text-[11px] text-slate-400 shrink-0">
+                        <span className="text-[11px] text-slate-400 font-mono tabular-nums shrink-0">
                           {stmt.uploadedAt ? formatThaiDate(stmt.uploadedAt) : ''}
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                      <div className="grid grid-cols-2 gap-2.5 text-xs mb-3">
                         <div>
-                          <span className="text-slate-400 block text-[10px]">ธนาคาร:</span>
-                          <span className="font-bold text-slate-800">{stmt.bankName}</span>
+                          <span className="text-slate-400 block text-[11px]">ธนาคาร</span>
+                          <span className="font-semibold text-slate-800">{stmt.bankName}</span>
                         </div>
                         <div>
-                          <span className="text-slate-400 block text-[10px]">เลขที่บัญชี:</span>
-                          <span className="font-bold font-mono text-slate-800">{stmt.accountNumber}</span>
+                          <span className="text-slate-400 block text-[11px]">เลขที่บัญชี</span>
+                          <span className="font-semibold font-mono tabular-nums text-slate-800">{stmt.accountNumber}</span>
                         </div>
                         <div>
-                          <span className="text-slate-400 block text-[10px]">ยอดยกมา:</span>
-                          <span className="font-mono text-slate-700">{formatCurrency(stmt.openingBalance)}</span>
+                          <span className="text-slate-400 block text-[11px]">ยอดยกมา</span>
+                          <span className="font-mono tabular-nums text-slate-700">{formatCurrency(stmt.openingBalance)}</span>
                         </div>
                         <div>
-                          <span className="text-slate-400 block text-[10px]">ยอดคงเหลือยกไป:</span>
-                          <span className="font-mono font-bold text-teal-700">{formatCurrency(stmt.closingBalance)}</span>
+                          <span className="text-slate-400 block text-[11px]">ยอดคงเหลือยกไป</span>
+                          <span className="font-mono tabular-nums font-bold text-slate-900">{formatCurrency(stmt.closingBalance)}</span>
                         </div>
                       </div>
 
-                      <div className="p-2.5 bg-slate-50 rounded-xl text-xs flex items-center justify-between text-slate-600">
-                        <span>จำนวนรายการ: <strong>{stmt.transactions?.length || 0} รายการ</strong></span>
-                        <span className="text-emerald-700 font-semibold">+ฝาก {formatCurrency(stmt.totalCredit || 0)}</span>
-                        <span className="text-rose-700 font-semibold">-ถอน {formatCurrency(stmt.totalDebit || 0)}</span>
+                      <div className="py-2.5 border-t border-slate-100 text-xs flex items-center justify-between text-slate-500 font-mono tabular-nums">
+                        <span className="font-sans">จำนวน {stmt.transactions?.length || 0} รายการ</span>
+                        <span className="text-emerald-700 font-semibold">+{formatCurrency(stmt.totalCredit || 0)}</span>
+                        <span className="text-rose-700 font-semibold">-{formatCurrency(stmt.totalDebit || 0)}</span>
                       </div>
                     </div>
 
@@ -2386,16 +2393,25 @@ export const CurrentAssetsPage: React.FC<CurrentAssetsPageProps> = ({
               <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
                 <button
                   type="button"
+                  disabled={isSavingAccount}
                   onClick={() => setIsAddAccountModalOpen(false)}
-                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition cursor-pointer"
+                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition cursor-pointer disabled:opacity-50"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#0D9488] hover:bg-teal-700 text-white font-bold rounded-xl shadow-xs transition cursor-pointer"
+                  disabled={isSavingAccount}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 bg-[#0D9488] hover:bg-teal-700 disabled:opacity-60 text-white font-bold rounded-xl shadow-xs transition cursor-pointer"
                 >
-                  บันทึกบัญชี
+                  {isSavingAccount ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>กำลังบันทึก...</span>
+                    </>
+                  ) : (
+                    <span>บันทึกบัญชี</span>
+                  )}
                 </button>
               </div>
             </form>
@@ -2972,7 +2988,7 @@ export const CurrentAssetsPage: React.FC<CurrentAssetsPageProps> = ({
                         onClick={() => folderInputRef.current?.click()}
                         className="p-5 bg-white border border-slate-200 hover:border-teal-400 rounded-2xl shadow-xs hover:shadow-md transition text-center cursor-pointer group flex flex-col items-center justify-between"
                       >
-                        <div className="w-14 h-14 rounded-2xl bg-slate-100 text-[#12304A] group-hover:text-teal-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                        <div className="w-14 h-14 rounded-2xl bg-slate-100 text-[#0F172A] group-hover:text-teal-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
                           <FolderUp className="w-7 h-7" />
                         </div>
                         <div>
@@ -3433,24 +3449,26 @@ export const CurrentAssetsPage: React.FC<CurrentAssetsPageProps> = ({
       {/* High-Resolution Zoom Modal for Statement Documents */}
       {statementPreviewZoomUrl && (
         <div
-          className="fixed inset-0 z-70 flex items-center justify-center p-3 sm:p-5 bg-slate-950/80 backdrop-blur-xs"
+          className="fixed inset-0 z-70 flex items-center justify-center p-3 sm:p-5 bg-slate-950/60 backdrop-blur-xs"
           onClick={() => setStatementPreviewZoomUrl(null)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col border border-slate-200"
+            className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col border border-slate-200/90"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-3.5 bg-[#12304A] text-white flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Eye className="w-4 h-4 text-teal-400" />
-                <span className="font-bold text-sm">ภาพตัวอย่างเอกสาร Statement</span>
+            <div className="px-5 py-3.5 bg-white border-b border-slate-200/80 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
+                  <Eye className="w-4 h-4" />
+                </div>
+                <span className="font-display font-semibold text-sm text-slate-900">ภาพตัวอย่างเอกสาร Statement</span>
               </div>
               <button
                 type="button"
                 onClick={() => setStatementPreviewZoomUrl(null)}
-                className="p-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 cursor-pointer transition"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
             <div className="p-3 bg-slate-100 flex-1 overflow-auto flex items-center justify-center max-h-[calc(92vh-60px)]">

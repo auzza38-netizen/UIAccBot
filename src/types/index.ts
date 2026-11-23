@@ -5,6 +5,9 @@ export interface AppUser {
   uid: string;
   displayName: string;
   email: string;
+  position?: string;
+  department?: string;
+  phone?: string;
   role: UserRole;
   status: UserStatus;
   assignedProjectIds: string[];
@@ -182,7 +185,7 @@ export interface AuditLog {
   userId: string;
   userEmail: string;
   action: string;
-  entityType: 'receipt' | 'project' | 'user' | 'category' | 'auth';
+  entityType: 'receipt' | 'project' | 'user' | 'category' | 'bankAccount' | 'statement' | 'auth';
   entityId: string;
   changes: string;
   timestamp: string;

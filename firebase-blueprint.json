@@ -1,0 +1,247 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Application user profile, role, status, and assigned projects.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "position": { "type": "string", "maxLength": 120 },
+        "department": { "type": "string", "maxLength": 120 },
+        "phone": { "type": "string", "maxLength": 40 },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "status": { "type": "string", "enum": ["pending", "active", "suspended"] },
+        "assignedProjectIds": { "type": "array", "description": "Assigned project IDs (max 100)." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "lastLoginAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["uid", "displayName", "email", "role", "status", "assignedProjectIds", "createdAt"]
+    },
+    "UserInvite": {
+      "title": "UserInvite",
+      "description": "Admin-managed pre-assigned role and project access by email.",
+      "type": "object",
+      "properties": {
+        "inviteId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "position": { "type": "string", "maxLength": 120 },
+        "department": { "type": "string", "maxLength": 120 },
+        "phone": { "type": "string", "maxLength": 40 },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "status": { "type": "string", "enum": ["pending", "active", "suspended"] },
+        "assignedProjectIds": { "type": "array" },
+        "createdBy": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["inviteId", "displayName", "email", "role", "status", "assignedProjectIds", "createdBy", "createdAt"]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "Client or department project with budget and assigned member emails.",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "projectCode": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "clientName": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "budget": { "type": "number" },
+        "assignedUsers": { "type": "array" },
+        "status": { "type": "string", "enum": ["active", "completed", "archived"] },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "createdBy": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["projectId", "projectCode", "clientName", "assignedUsers", "status", "createdBy", "createdAt", "updatedAt"]
+    },
+    "ExpenseCategory": {
+      "title": "ExpenseCategory",
+      "description": "Accounting expense category (main or sub-category).",
+      "type": "object",
+      "properties": {
+        "categoryId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "categoryName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "parentId": { "type": "string", "maxLength": 128 },
+        "parentName": { "type": "string", "maxLength": 120 },
+        "level": { "type": "string", "enum": ["main", "sub"] },
+        "isActive": { "type": "boolean" },
+        "createdBy": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["categoryId", "categoryName", "level", "isActive", "createdBy", "createdAt", "updatedAt"]
+    },
+    "Receipt": {
+      "title": "Receipt",
+      "description": "Expense receipt or tax invoice with line items and approval workflow.",
+      "type": "object",
+      "properties": {
+        "receiptId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "projectId": { "type": "string", "maxLength": 128 },
+        "uploadedBy": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "uploadedByEmail": { "type": "string", "maxLength": 200 },
+        "documentType": { "type": "string", "enum": ["receipt", "tax_invoice", "other"] },
+        "documentDate": { "type": "string", "maxLength": 20 },
+        "uploadDate": { "type": "string", "maxLength": 20 },
+        "receiptNumber": { "type": "string", "maxLength": 100 },
+        "vendorName": { "type": "string", "maxLength": 200 },
+        "vendorTaxId": { "type": "string", "maxLength": 40 },
+        "vendorAddress": { "type": "string", "maxLength": 500 },
+        "customerName": { "type": "string", "maxLength": 200 },
+        "customerTaxId": { "type": "string", "maxLength": 40 },
+        "customerAddress": { "type": "string", "maxLength": 500 },
+        "categoryId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "subtotal": { "type": "number" },
+        "vatAmount": { "type": "number" },
+        "withholdingTax": { "type": "number" },
+        "discount": { "type": "number" },
+        "grandTotal": { "type": "number" },
+        "currency": { "type": "string", "maxLength": 10 },
+        "paymentMethod": { "type": "string", "maxLength": 60 },
+        "receiptImagePath": { "type": "string", "maxLength": 500 },
+        "receiptImageUrl": { "type": "string", "maxLength": 450000 },
+        "imageHash": { "type": "string", "maxLength": 128 },
+        "ocrStatus": { "type": "string", "enum": ["completed", "skipped", "failed", "pending"] },
+        "verificationStatus": { "type": "string", "enum": ["draft", "needs_review", "verified"] },
+        "approvalStatus": { "type": "string", "enum": ["draft", "pending", "approved", "rejected"] },
+        "isConfidential": { "type": "boolean" },
+        "notes": { "type": "string", "maxLength": 1500 },
+        "items": { "type": "array" },
+        "totalPages": { "type": "number" },
+        "pdfPages": { "type": "array" },
+        "approvedBy": { "type": "string", "maxLength": 200 },
+        "approvedAt": { "type": "string", "maxLength": 64 },
+        "isDeleted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "receiptId",
+        "projectId",
+        "uploadedBy",
+        "uploadedByEmail",
+        "documentType",
+        "documentDate",
+        "categoryId",
+        "grandTotal",
+        "ocrStatus",
+        "verificationStatus",
+        "approvalStatus",
+        "isConfidential",
+        "items",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BankAccount": {
+      "title": "BankAccount",
+      "description": "Current asset or corporate bank account linked to projects or headquarters.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "accountNumber": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "bankName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "bankCode": { "type": "string", "maxLength": 20 },
+        "accountName": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "branchName": { "type": "string", "maxLength": 120 },
+        "assetType": { "type": "string", "enum": ["savings", "current", "fixed", "petty_cash", "other"] },
+        "currentBalance": { "type": "number" },
+        "availableBalance": { "type": "number" },
+        "currency": { "type": "string", "maxLength": 10 },
+        "projectId": { "type": "string", "maxLength": 128 },
+        "projectName": { "type": "string", "maxLength": 200 },
+        "lastUpdatedDate": { "type": "string", "maxLength": 30 },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "statementCount": { "type": "number" },
+        "createdBy": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "accountNumber", "bankName", "accountName", "assetType", "currentBalance", "currency", "createdBy", "createdAt", "updatedAt"]
+    },
+    "StatementRecord": {
+      "title": "StatementRecord",
+      "description": "Imported bank statement summary and normalized transactions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "accountId": { "type": "string", "maxLength": 128 },
+        "accountNumber": { "type": "string", "maxLength": 60 },
+        "bankName": { "type": "string", "maxLength": 120 },
+        "accountName": { "type": "string", "maxLength": 200 },
+        "projectId": { "type": "string", "maxLength": 128 },
+        "projectName": { "type": "string", "maxLength": 200 },
+        "statementPeriodStart": { "type": "string", "maxLength": 30 },
+        "statementPeriodEnd": { "type": "string", "maxLength": 30 },
+        "openingBalance": { "type": "number" },
+        "closingBalance": { "type": "number" },
+        "totalDebit": { "type": "number" },
+        "totalCredit": { "type": "number" },
+        "transactions": { "type": "array" },
+        "fileName": { "type": "string", "maxLength": 255 },
+        "uploadedAt": { "type": "string", "maxLength": 64 },
+        "uploadedBy": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "uploadedByEmail": { "type": "string", "maxLength": 200 },
+        "rawOcrSummary": { "type": "string", "maxLength": 5000 },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "accountId", "bankName", "openingBalance", "closingBalance", "transactions", "uploadedBy", "createdAt", "updatedAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable activity audit log entry.",
+      "type": "object",
+      "properties": {
+        "logId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "userEmail": { "type": "string", "maxLength": 200 },
+        "action": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "entityType": { "type": "string", "enum": ["receipt", "project", "user", "category", "bankAccount", "statement", "auth"] },
+        "entityId": { "type": "string", "maxLength": 128 },
+        "changes": { "type": "string", "maxLength": 1000 },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["logId", "userId", "userEmail", "action", "entityType", "entityId", "changes", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Authenticated user profiles and RBAC roles."
+    },
+    "/userInvites/{inviteId}": {
+      "schema": { "$ref": "#/entities/UserInvite" },
+      "description": "Pre-assigned user invites created by Master Admins."
+    },
+    "/projects/{projectId}": {
+      "schema": { "$ref": "#/entities/Project" },
+      "description": "Corporate projects and client budgets."
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/ExpenseCategory" },
+      "description": "Chart of expense categories and subcategories."
+    },
+    "/receipts/{receiptId}": {
+      "schema": { "$ref": "#/entities/Receipt" },
+      "description": "Uploaded expense receipts and tax invoices."
+    },
+    "/bankAccounts/{accountId}": {
+      "schema": { "$ref": "#/entities/BankAccount" },
+      "description": "Corporate bank accounts and current assets."
+    },
+    "/statements/{statementId}": {
+      "schema": { "$ref": "#/entities/StatementRecord" },
+      "description": "Imported bank statement records and transactions."
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Append-only system audit logs."
+    }
+  }
+}

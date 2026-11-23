@@ -13,6 +13,9 @@ import {
   CheckSquare,
   Square,
   Info,
+  Phone,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 
 interface AddUserModalProps {
@@ -33,10 +36,13 @@ export const AddUserModal: React.FC<AddUserModalProps> = ({
 
   const [displayName, setDisplayName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
+  const [position, setPosition] = useState<string>('');
+  const [phone, setPhone] = useState<string>('');
   const [role, setRole] = useState<UserRole>(initialRole);
   const [status, setStatus] = useState<UserStatus>('active');
   const [assignedProjectIds, setAssignedProjectIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   React.useEffect(() => {
@@ -45,7 +51,10 @@ export const AddUserModal: React.FC<AddUserModalProps> = ({
       setStatus('active');
       setDisplayName('');
       setEmail('');
+      setPosition('');
+      setPhone('');
       setAssignedProjectIds([]);
+      setFormError(null);
       setSuccessMessage(null);
     }
   }, [isOpen, initialRole]);
@@ -73,14 +82,15 @@ export const AddUserModal: React.FC<AddUserModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanEmail = email.trim().toLowerCase();
+    setFormError(null);
 
     if (!cleanEmail || !cleanEmail.includes('@')) {
-      alert('กรุณากรอกอีเมลที่ถูกต้องสำหรับบัญชี Google');
+      setFormError('กรุณากรอกอีเมลที่ถูกต้องสำหรับบัญชี Google');
       return;
     }
 
     if (!currentUser) {
-      alert('ไม่พบเซสชันผู้ใช้งาน กรุณาเข้าสู่ระบบใหม่อีกครั้ง');
+      setFormError('ไม่พบเซสชันผู้ใช้งาน กรุณาเข้าสู่ระบบใหม่อีกครั้ง');
       return;
     }
 
@@ -89,6 +99,8 @@ export const AddUserModal: React.FC<AddUserModalProps> = ({
       await addUser({
         displayName: displayName.trim() || cleanEmail.split('@')[0],
         email: cleanEmail,
+        position: position.trim(),
+        phone: phone.trim(),
         role,
         status,
         assignedProjectIds: role === 'admin' ? projects.map((p) => p.projectId) : assignedProjectIds,
@@ -104,6 +116,8 @@ export const AddUserModal: React.FC<AddUserModalProps> = ({
         setSuccessMessage(null);
         setDisplayName('');
         setEmail('');
+        setPosition('');
+        setPhone('');
         setRole('user');
         setStatus('active');
         setAssignedProjectIds([]);
@@ -112,37 +126,36 @@ export const AddUserModal: React.FC<AddUserModalProps> = ({
       }, 1500);
     } catch (err: any) {
       console.error('Error adding user:', err);
-      alert('เกิดข้อผิดพลาดในการเพิ่มผู้ใช้งาน: ' + (err?.message || 'ไม่สามารถบันทึกได้'));
+      setFormError('เกิดข้อผิดพลาดในการเพิ่มผู้ใช้งาน: ' + (err?.message || 'ไม่สามารถบันทึกได้'));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
-        
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-xs overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="px-5 py-3.5 bg-[#12304A] text-white flex items-center justify-between shrink-0">
+        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-lg bg-[#0D9488] text-white">
-              <UserPlus className="w-5 h-5" />
+            <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center shrink-0">
+              <UserPlus className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-base font-bold leading-tight">
-                เพิ่มผู้ใช้งาน & กำหนดสิทธิ์พนักงาน
+              <h2 className="font-display text-sm font-bold text-slate-900 leading-tight">
+                เพิ่มผู้ใช้งาน &amp; กำหนดสิทธิ์พนักงาน
               </h2>
-              <p className="text-[11px] text-teal-200/90">
-                เพิ่มบัญชีสำหรับพนักงานคีย์ข้อมูลใบเสร็จ หรือเพิ่ม Master Admin ร่วม
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                เพิ่มบัญชีสำหรับพนักงานคีย์ข้อมูล หรือแต่งตั้ง Master Admin ร่วม
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/10"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -160,6 +173,13 @@ export const AddUserModal: React.FC<AddUserModalProps> = ({
         ) : (
           <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4 text-xs">
             
+            {formError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl flex items-start gap-2 text-xs">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <span className="font-medium">{formError}</span>
+              </div>
+            )}
+
             {/* Guide Info Box */}
             <div className="p-3 bg-teal-50/70 border border-teal-200/80 rounded-xl text-teal-900 flex items-start gap-2.5 text-[11px] leading-relaxed">
               <Info className="w-4 h-4 text-teal-700 shrink-0 mt-0.5" />
@@ -208,6 +228,40 @@ export const AddUserModal: React.FC<AddUserModalProps> = ({
               <p className="text-[10px] text-slate-400 mt-1">
                 * ต้องเป็นอีเมลที่ใช้ล็อกอินกับ Google (Google Account / Workspace)
               </p>
+            </div>
+
+            {/* Position & Phone Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  ตำแหน่ง / แผนก
+                </label>
+                <div className="relative">
+                  <Briefcase className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    placeholder="เช่น ฝ่ายบัญชี, จัดซื้อ"
+                    value={position}
+                    onChange={(e) => setPosition(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-teal-600 focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  เบอร์โทรศัพท์ติดต่อ
+                </label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="tel"
+                    placeholder="เช่น 081-234-5678"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-mono focus:ring-2 focus:ring-teal-600 focus:outline-none"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Role & Status Row */}
@@ -320,8 +374,17 @@ export const AddUserModal: React.FC<AddUserModalProps> = ({
                 disabled={isSubmitting}
                 className="flex items-center gap-1.5 px-5 py-2 bg-[#0D9488] hover:bg-teal-700 disabled:opacity-50 text-white rounded-lg font-bold shadow-xs cursor-pointer"
               >
-                <Check className="w-4 h-4" />
-                {role === 'admin' ? 'เพิ่ม Master Admin' : 'เพิ่มพนักงาน'}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>กำลังบันทึก...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>{role === 'admin' ? 'เพิ่ม Master Admin' : 'เพิ่มพนักงาน'}</span>
+                  </>
+                )}
               </button>
             </div>
 
