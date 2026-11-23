@@ -1,0 +1,8 @@
+{
+  "name": "UiAccBot",
+  "description": "ระบบบันทึกและบริหารจัดการใบเสร็จรับเงินและค่าใช้จ่ายของกิจการด้วย AI OCR และการจัดเก็บข้อมูลบนคลาวด์",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
