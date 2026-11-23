@@ -5,6 +5,11 @@ import {
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  sendEmailVerification,
+  updateProfile,
   signOut as firebaseSignOut,
 } from 'firebase/auth';
 import {
@@ -38,6 +43,7 @@ interface AuthContextType {
   currentUser: AppUser | null;
   firebaseUser: FirebaseUser | null;
   authReady: boolean;
+  needsEmailVerification: boolean;
   isAdmin: boolean;
   isApproved: boolean;
   loading: boolean;
@@ -45,6 +51,11 @@ interface AuthContextType {
   authError: AuthErrorInfo | null;
   signInWithGoogle: () => Promise<void>;
   signInWithGoogleRedirect: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  registerWithEmail: (email: string, password: string, displayName?: string) => Promise<void>;
+  resetPasswordWithEmail: (email: string) => Promise<void>;
+  resendVerificationEmail: () => Promise<void>;
+  recheckEmailVerification: () => Promise<boolean>;
   signInAsMasterAdmin: () => void;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -56,6 +67,7 @@ const AuthContext = createContext<AuthContextType>({
   currentUser: null,
   firebaseUser: null,
   authReady: false,
+  needsEmailVerification: false,
   isAdmin: false,
   isApproved: false,
   loading: true,
@@ -63,6 +75,11 @@ const AuthContext = createContext<AuthContextType>({
   authError: null,
   signInWithGoogle: async () => {},
   signInWithGoogleRedirect: async () => {},
+  signInWithEmail: async () => {},
+  registerWithEmail: async () => {},
+  resetPasswordWithEmail: async () => {},
+  resendVerificationEmail: async () => {},
+  recheckEmailVerification: async () => false,
   signInAsMasterAdmin: () => {},
   signOut: async () => {},
   refreshUser: async () => {},
@@ -117,11 +134,69 @@ function mapFirebaseAuthError(error: any): AuthErrorInfo {
       actionType: 'check_network',
     };
   }
+  if (code === 'auth/operation-not-allowed') {
+    return {
+      code,
+      title: 'ยังไม่ได้เปิดใช้งานระบบ Email/Password ใน Firebase Console',
+      detail: 'ผู้ดูแลโปรเจกต์ต้องเปิดใช้งาน Sign-in provider แบบ "Email/Password" ใน Firebase Authentication ก่อน',
+      solution: 'เข้าไปที่ Firebase Console > Authentication > Sign-in method > Add new provider > เลือก Email/Password และกด Enable',
+      actionType: 'check_network',
+    };
+  }
+  if (
+    code === 'auth/invalid-credential' ||
+    code === 'auth/wrong-password' ||
+    code === 'auth/user-not-found'
+  ) {
+    return {
+      code,
+      title: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+      detail: 'ไม่พบบัญชีผู้ใช้นี้หรือรหัสผ่านไม่ตรงกับข้อมูลในระบบ Firebase Authentication',
+      solution: 'กรุณาตรวจสอบอีเมลและรหัสผ่าน หรือกด "สมัครสมาชิกใหม่" / "ลืมรหัสผ่าน"',
+      actionType: 'check_network',
+    };
+  }
+  if (code === 'auth/invalid-email') {
+    return {
+      code,
+      title: 'รูปแบบอีเมลไม่ถูกต้อง',
+      detail: 'กรุณากรอกที่อยู่อีเมลให้ครบถ้วนและถูกต้อง (เช่น name@company.com)',
+      solution: 'ตรวจสอบตัวสะกดอีเมลแล้วลองใหม่อีกครั้ง',
+      actionType: 'check_network',
+    };
+  }
+  if (code === 'auth/email-already-in-use') {
+    return {
+      code,
+      title: 'อีเมลนี้ถูกลงทะเบียนไว้แล้ว',
+      detail: 'มีบัญชีผู้ใช้งานอีเมลนี้อยู่ในระบบแล้ว',
+      solution: 'กรุณาสลับไปแถบ "เข้าสู่ระบบด้วยอีเมล" หรือเข้าสู่ระบบด้วย Google Account',
+      actionType: 'check_network',
+    };
+  }
+  if (code === 'auth/weak-password') {
+    return {
+      code,
+      title: 'รหัสผ่านสั้นเกินไป',
+      detail: 'รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร',
+      solution: 'ตั้งรหัสผ่านที่มีตัวอักษรหรือตัวเลขอย่างน้อย 6 ตัวขึ้นไป',
+      actionType: 'check_network',
+    };
+  }
+  if (code === 'auth/too-many-requests') {
+    return {
+      code,
+      title: 'พยายามเข้าสู่ระบบบ่อยเกินไปชั่วคราว',
+      detail: 'ระบบระงับการลองเข้าสู่ระบบชั่วคราวเพื่อความปลอดภัย',
+      solution: 'กรุณารอสักครู่แล้วลองใหม่ หรือกดรีเซ็ตรหัสผ่าน',
+      actionType: 'check_network',
+    };
+  }
   return {
     code,
     title: 'เข้าสู่ระบบไม่สำเร็จ',
     detail: rawMessage,
-    solution: 'กรุณาลองเข้าสู่ระบบด้วย Google อีกครั้ง',
+    solution: 'กรุณาตรวจสอบข้อมูลและลองเข้าสู่ระบบอีกครั้ง',
     actionType: 'allow_popup',
   };
 }
@@ -130,6 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [authReady, setAuthReady] = useState<boolean>(false);
+  const [needsEmailVerification, setNeedsEmailVerification] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [isSigningIn, setIsSigningIn] = useState<boolean>(false);
   const [authError, setAuthError] = useState<AuthErrorInfo | null>(null);
@@ -251,11 +327,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setFirebaseUser(fbUser);
       if (!fbUser) {
         setCurrentUser(null);
+        setNeedsEmailVerification(false);
         setAuthReady(true);
         setLoading(false);
         return;
       }
 
+      if (!fbUser.emailVerified) {
+        setCurrentUser(null);
+        setNeedsEmailVerification(true);
+        setAuthReady(true);
+        setLoading(false);
+        return;
+      }
+
+      setNeedsEmailVerification(false);
       setLoading(true);
       try {
         const profile = await syncUserProfile(fbUser);
@@ -317,6 +403,76 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signInWithEmail = async (email: string, password: string) => {
+    setIsSigningIn(true);
+    setAuthError(null);
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+      if (!cred.user.emailVerified) {
+        setNeedsEmailVerification(true);
+      }
+    } catch (error: any) {
+      setAuthError(mapFirebaseAuthError(error));
+      throw error;
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  const registerWithEmail = async (email: string, password: string, displayName?: string) => {
+    setIsSigningIn(true);
+    setAuthError(null);
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      if (displayName && displayName.trim()) {
+        await updateProfile(cred.user, { displayName: displayName.trim() });
+      }
+      await sendEmailVerification(cred.user);
+      setNeedsEmailVerification(true);
+    } catch (error: any) {
+      setAuthError(mapFirebaseAuthError(error));
+      throw error;
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  const resetPasswordWithEmail = async (email: string) => {
+    setIsSigningIn(true);
+    setAuthError(null);
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+    } catch (error: any) {
+      setAuthError(mapFirebaseAuthError(error));
+      throw error;
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  const resendVerificationEmail = async () => {
+    if (!auth.currentUser) return;
+    await sendEmailVerification(auth.currentUser);
+  };
+
+  const recheckEmailVerification = async (): Promise<boolean> => {
+    if (!auth.currentUser) return false;
+    await auth.currentUser.reload();
+    if (auth.currentUser.emailVerified) {
+      setNeedsEmailVerification(false);
+      setLoading(true);
+      try {
+        const profile = await syncUserProfile(auth.currentUser);
+        setCurrentUser(profile);
+        setAuthError(null);
+      } finally {
+        setLoading(false);
+      }
+      return true;
+    }
+    return false;
+  };
+
   const signInAsMasterAdmin = () => {
     signInWithGoogle().catch(() => {});
   };
@@ -325,6 +481,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await firebaseSignOut(auth);
     setCurrentUser(null);
     setFirebaseUser(null);
+    setNeedsEmailVerification(false);
     setAuthError(null);
   };
 
@@ -355,6 +512,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentUser,
         firebaseUser,
         authReady,
+        needsEmailVerification,
         isAdmin: isMaster,
         isApproved,
         loading,
@@ -362,6 +520,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         authError,
         signInWithGoogle,
         signInWithGoogleRedirect,
+        signInWithEmail,
+        registerWithEmail,
+        resetPasswordWithEmail,
+        resendVerificationEmail,
+        recheckEmailVerification,
         signInAsMasterAdmin,
         signOut,
         refreshUser,

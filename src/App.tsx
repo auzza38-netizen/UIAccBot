@@ -41,6 +41,11 @@ import {
   Calculator,
   CheckCircle2,
   Database,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  LogOut,
 } from 'lucide-react';
 import {
   MASTER_ADMIN_EMAIL,
@@ -50,10 +55,18 @@ import {
 function MainLayout() {
   const {
     currentUser,
+    firebaseUser,
+    needsEmailVerification,
     isAdmin,
     isApproved,
     signInWithGoogle,
     signInWithGoogleRedirect,
+    signInWithEmail,
+    registerWithEmail,
+    resetPasswordWithEmail,
+    resendVerificationEmail,
+    recheckEmailVerification,
+    signOut,
     loading,
     isSigningIn,
     authError,
@@ -88,6 +101,17 @@ function MainLayout() {
   const [isSeedingSamples, setIsSeedingSamples] = useState<boolean>(false);
   const [heroImgFailed, setHeroImgFailed] = useState<boolean>(false);
 
+  // Email/Password Auth UI state
+  const [emailMode, setEmailMode] = useState<'login' | 'register'>('login');
+  const [authEmail, setAuthEmail] = useState<string>('');
+  const [authPassword, setAuthPassword] = useState<string>('');
+  const [authDisplayName, setAuthDisplayName] = useState<string>('');
+  const [showAuthPassword, setShowAuthPassword] = useState<boolean>(false);
+  const [emailFeedback, setEmailFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isCheckingVerify, setIsCheckingVerify] = useState<boolean>(false);
+  const [isResendingVerify, setIsResendingVerify] = useState<boolean>(false);
+  const [verifyNotice, setVerifyNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   const handleNavigateToAssets = (accountId?: string) => {
     setTargetAssetAccountId(accountId);
     setActiveTab('assets');
@@ -99,6 +123,98 @@ function MainLayout() {
       navigator.clipboard.writeText(host);
       setCopiedDomain(true);
       setTimeout(() => setCopiedDomain(false), 2500);
+    }
+  };
+
+  const handleEmailAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmailFeedback(null);
+    clearAuthError();
+
+    const trimmedEmail = authEmail.trim();
+    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setEmailFeedback({ type: 'error', text: 'กรุณากรอกอีเมลให้ถูกต้อง' });
+      return;
+    }
+    if (!authPassword || authPassword.length < 6) {
+      setEmailFeedback({ type: 'error', text: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' });
+      return;
+    }
+
+    try {
+      if (emailMode === 'login') {
+        await signInWithEmail(trimmedEmail, authPassword);
+      } else {
+        await registerWithEmail(trimmedEmail, authPassword, authDisplayName.trim() || undefined);
+        setEmailFeedback({
+          type: 'success',
+          text: 'ลงทะเบียนสำเร็จ ระบบได้ส่งลิงก์ยืนยันไปยังอีเมลของคุณแล้ว กรุณายืนยันอีเมลก่อนเข้าใช้งาน',
+        });
+      }
+    } catch {
+      // AuthContext sets detailed Thai authError banner automatically
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    setEmailFeedback(null);
+    clearAuthError();
+    const trimmedEmail = authEmail.trim();
+    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setEmailFeedback({
+        type: 'error',
+        text: 'กรุณากรอกอีเมลในช่องด้านบนก่อนกดรีเซ็ตรหัสผ่าน',
+      });
+      return;
+    }
+    try {
+      await resetPasswordWithEmail(trimmedEmail);
+      setEmailFeedback({
+        type: 'success',
+        text: `ส่งลิงก์สำหรับตั้งรหัสผ่านใหม่ไปที่ ${trimmedEmail} แล้ว กรุณาตรวจสอบกล่องจดหมาย (หรือโฟลเดอร์ Spam)`,
+      });
+    } catch {
+      // AuthContext handles error banner
+    }
+  };
+
+  const handleRecheckVerification = async () => {
+    setIsCheckingVerify(true);
+    setVerifyNotice(null);
+    try {
+      const ok = await recheckEmailVerification();
+      if (!ok) {
+        setVerifyNotice({
+          type: 'error',
+          text: 'ยังไม่พบการยืนยันอีเมล กรุณาคลิกลิงก์ในอีเมลที่ระบบส่งให้ก่อนแล้วลองตรวจสอบอีกครั้ง',
+        });
+      }
+    } catch (err: any) {
+      setVerifyNotice({
+        type: 'error',
+        text: err?.message || 'ไม่สามารถตรวจสอบสถานะอีเมลได้',
+      });
+    } finally {
+      setIsCheckingVerify(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setIsResendingVerify(true);
+    setVerifyNotice(null);
+    try {
+      await resendVerificationEmail();
+      setVerifyNotice({
+        type: 'success',
+        text: `ส่งลิงก์ยืนยันไปที่ ${firebaseUser?.email || 'อีเมลของคุณ'} อีกครั้งเรียบร้อยแล้ว`,
+      });
+    } catch (err: any) {
+      setVerifyNotice({
+        type: 'error',
+        text: err?.message || 'ไม่สามารถส่งอีเมลซ้ำได้ กรุณารอสักครู่แล้วลองใหม่',
+      });
+    } finally {
+      setIsResendingVerify(false);
     }
   };
 
@@ -152,6 +268,107 @@ function MainLayout() {
             </p>
           )}
         </div>
+      </div>
+    );
+  }
+
+  // Email/Password account signed in but email not verified yet
+  if (needsEmailVerification && !currentUser) {
+    return (
+      <div className="min-h-screen bg-[#F6F8FB] flex flex-col justify-between text-slate-900">
+        <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-20">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-8">
+            <div className="flex items-center gap-2.5 whitespace-nowrap shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-[#0F172A] flex items-center justify-center text-white">
+                <ReceiptText className="w-4 h-4" />
+              </div>
+              <span className="font-display font-bold text-base tracking-tight text-slate-900">
+                UiAccBot
+              </span>
+            </div>
+            <button
+              onClick={() => signOut()}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>ออกจากระบบ</span>
+            </button>
+          </div>
+        </header>
+
+        <main className="max-w-md mx-auto px-4 py-16 w-full">
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 text-center space-y-4">
+            <div className="w-14 h-14 bg-teal-50 border border-teal-200 text-teal-700 rounded-xl flex items-center justify-center mx-auto">
+              <Mail className="w-7 h-7" />
+            </div>
+            <div>
+              <h2 className="font-display text-lg font-bold text-slate-900">
+                กรุณายืนยันอีเมลก่อนเข้าใช้งาน
+              </h2>
+              <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                ระบบความปลอดภัย Firestore กำหนดให้บัญชียืนยันความเป็นเจ้าของอีเมล{' '}
+                <span className="font-mono font-semibold text-slate-900">
+                  {firebaseUser?.email}
+                </span>{' '}
+                ผ่านลิงก์ในกล่องจดหมายก่อนเข้าถึงฐานข้อมูล
+              </p>
+            </div>
+
+            {verifyNotice && (
+              <div
+                className={`p-3 rounded-lg text-xs font-medium text-left border ${
+                  verifyNotice.type === 'success'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                    : 'bg-rose-50 border-rose-200 text-rose-800'
+                }`}
+              >
+                {verifyNotice.text}
+              </div>
+            )}
+
+            <div className="space-y-2.5 pt-1">
+              <button
+                onClick={handleRecheckVerification}
+                disabled={isCheckingVerify}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#0F766E] hover:bg-[#0D645D] disabled:opacity-60 text-white rounded-xl text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
+              >
+                {isCheckingVerify ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>กำลังตรวจสอบสถานะ...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>ฉันยืนยันอีเมลแล้ว — เข้าสู่ระบบ</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={handleResendVerification}
+                disabled={isResendingVerify}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200/80 disabled:opacity-60 text-slate-700 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+              >
+                {isResendingVerify ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>กำลังส่งอีเมล...</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>ส่งลิงก์ยืนยันอีเมลอีกครั้ง</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </main>
+
+        <footer className="py-4 text-center text-xs text-slate-400 border-t border-slate-200">
+          UiAccBot
+        </footer>
       </div>
     );
   }
@@ -274,6 +491,161 @@ function MainLayout() {
                   <HelpCircle className="w-4 h-4 text-slate-400" />
                   <span>ข้อมูลสิทธิ์การเข้าใช้งาน</span>
                 </button>
+              </div>
+
+              {/* Email / Password Sign-in Section (Following Google Sign-in) */}
+              <div className="max-w-md pt-2">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-px flex-1 bg-slate-200" />
+                  <span className="text-[11px] font-medium text-slate-400">
+                    หรือเข้าสู่ระบบด้วยอีเมล
+                  </span>
+                  <div className="h-px flex-1 bg-slate-200" />
+                </div>
+
+                <form
+                  onSubmit={handleEmailAuthSubmit}
+                  className="bg-white border border-slate-200/90 rounded-xl p-4 sm:p-5 space-y-3"
+                >
+                  <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmailMode('login');
+                        setEmailFeedback(null);
+                      }}
+                      className={`flex-1 py-1.5 px-3 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
+                        emailMode === 'login'
+                          ? 'bg-white text-slate-900 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      เข้าสู่ระบบด้วยอีเมล
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmailMode('register');
+                        setEmailFeedback(null);
+                      }}
+                      className={`flex-1 py-1.5 px-3 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
+                        emailMode === 'register'
+                          ? 'bg-white text-slate-900 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      สมัครสมาชิกใหม่
+                    </button>
+                  </div>
+
+                  {emailMode === 'register' && (
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                        ชื่อ-นามสกุลผู้ใช้งาน
+                      </label>
+                      <input
+                        type="text"
+                        value={authDisplayName}
+                        onChange={(e) => setAuthDisplayName(e.target.value)}
+                        placeholder="เช่น สมชาย ใจดี"
+                        className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-teal-600 transition-colors"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                      อีเมล
+                    </label>
+                    <div className="relative">
+                      <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="email"
+                        required
+                        value={authEmail}
+                        onChange={(e) => setAuthEmail(e.target.value)}
+                        placeholder="name@company.com"
+                        className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-teal-600 transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-medium text-slate-600">
+                        รหัสผ่าน
+                      </label>
+                      {emailMode === 'login' && (
+                        <button
+                          type="button"
+                          onClick={handleForgotPassword}
+                          className="text-[11px] font-medium text-teal-700 hover:text-teal-900 hover:underline cursor-pointer"
+                        >
+                          ลืมรหัสผ่าน?
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type={showAuthPassword ? 'text' : 'password'}
+                        required
+                        minLength={6}
+                        value={authPassword}
+                        onChange={(e) => setAuthPassword(e.target.value)}
+                        placeholder="รหัสผ่านอย่างน้อย 6 ตัวอักษร"
+                        className="w-full pl-9 pr-9 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-teal-600 transition-colors"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowAuthPassword((v) => !v)}
+                        aria-label={showAuthPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                      >
+                        {showAuthPassword ? (
+                          <EyeOff className="w-3.5 h-3.5" />
+                        ) : (
+                          <Eye className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {emailFeedback && (
+                    <div
+                      className={`p-2.5 rounded-lg text-[11px] font-medium border ${
+                        emailFeedback.type === 'success'
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                          : 'bg-rose-50 border-rose-200 text-rose-800'
+                      }`}
+                    >
+                      {emailFeedback.text}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isSigningIn}
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#0F766E] hover:bg-[#0D645D] disabled:opacity-70 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                  >
+                    {isSigningIn ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>กำลังดำเนินการ...</span>
+                      </>
+                    ) : emailMode === 'login' ? (
+                      <>
+                        <Mail className="w-3.5 h-3.5" />
+                        <span>เข้าสู่ระบบด้วยอีเมล</span>
+                      </>
+                    ) : (
+                      <>
+                        <PlusCircle className="w-3.5 h-3.5" />
+                        <span>สมัครสมาชิกและยืนยันอีเมล</span>
+                      </>
+                    )}
+                  </button>
+                </form>
               </div>
             </div>
 
