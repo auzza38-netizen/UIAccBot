@@ -84,7 +84,7 @@ function MainLayout() {
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
   const [isReceiptModalInEditMode, setIsReceiptModalInEditMode] = useState<boolean>(false);
   const [targetAssetAccountId, setTargetAssetAccountId] = useState<string | undefined>(undefined);
-  const [seedMessage, setSeedMessage] = useState<string | null>(null);
+  const [seedMessage, setSeedMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isSeedingSamples, setIsSeedingSamples] = useState<boolean>(false);
 
   const handleNavigateToAssets = (accountId?: string) => {
@@ -115,12 +115,19 @@ function MainLayout() {
   const handleSeedSampleProjects = async () => {
     if (!isAdmin) return;
     setIsSeedingSamples(true);
+    setSeedMessage(null);
     try {
       await seedSampleDataToFirebase();
-      setSeedMessage('เพิ่มข้อมูลโครงการ ใบเสร็จ และบัญชีตัวอย่างเข้าสู่ Firebase เรียบร้อยแล้ว');
-      setTimeout(() => setSeedMessage(null), 4000);
+      setSeedMessage({
+        type: 'success',
+        text: 'เพิ่มชุดข้อมูลตัวอย่างสำหรับนำเสนอ (4 โครงการ, 12 ใบเสร็จ, 4 บัญชี, 3 Statement และรายชื่อทีมงาน) เข้าสู่ Firebase เรียบร้อยแล้ว',
+      });
+      setTimeout(() => setSeedMessage(null), 5000);
     } catch (e: any) {
-      setSeedMessage('เกิดข้อผิดพลาด: ' + (e?.message || 'ไม่สามารถสร้างข้อมูลตัวอย่างได้'));
+      setSeedMessage({
+        type: 'error',
+        text: 'เกิดข้อผิดพลาด: ' + (e?.message || 'ไม่สามารถสร้างข้อมูลตัวอย่างได้'),
+      });
     } finally {
       setIsSeedingSamples(false);
     }
@@ -159,7 +166,7 @@ function MainLayout() {
                 <ReceiptText className="w-4 h-4" />
               </div>
               <span className="font-display font-bold text-base tracking-tight text-slate-900">
-                Progressive Account Receipt Manager
+                UiAccBot
               </span>
             </div>
 
@@ -356,7 +363,7 @@ function MainLayout() {
         </main>
 
         <footer className="py-5 border-t border-slate-200/80 text-center text-xs text-slate-400">
-          Progressive Account Receipt Manager · Firebase Cloud Database ({activeFirebaseProjectId || 'UiAccBot'})
+          UiAccBot · Firebase Cloud Database ({activeFirebaseProjectId || 'UiAccBot'})
         </footer>
 
         {/* Auth Help Modal */}
@@ -460,7 +467,7 @@ function MainLayout() {
           </div>
         </main>
         <footer className="py-4 text-center text-xs text-slate-400 border-t border-slate-200">
-          Progressive Account Receipt Manager
+          UiAccBot
         </footer>
       </div>
     );
@@ -514,12 +521,25 @@ function MainLayout() {
           )}
 
           {seedMessage && (
-            <div className="mb-5 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-medium flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                {seedMessage}
+            <div
+              className={`mb-5 p-3 rounded-xl text-xs font-medium flex items-center justify-between border ${
+                seedMessage.type === 'success'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                  : 'bg-rose-50 border-rose-200 text-rose-800'
+              }`}
+            >
+              <span className="flex items-center gap-2 min-w-0 break-all">
+                {seedMessage.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                )}
+                <span>{seedMessage.text}</span>
               </span>
-              <button onClick={() => setSeedMessage(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+              <button
+                onClick={() => setSeedMessage(null)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer shrink-0 ml-2"
+              >
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>

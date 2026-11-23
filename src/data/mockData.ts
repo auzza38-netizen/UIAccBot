@@ -145,7 +145,7 @@ export function createMockReceiptSvgDataUrl(params: {
   <rect x="36" y="${footerBaseY + 62}" width="348" height="36" rx="6" fill="#f0fdfa" stroke="#99f6e4"/>
   <text x="48" y="${footerBaseY + 85}" font-size="14" font-weight="bold" fill="#115e59">ยอดเงินสุทธิ (Grand Total)</text>
   <text x="372" y="${footerBaseY + 85}" font-size="15" font-weight="bold" fill="#0f766e" text-anchor="end" font-family="monospace">${totalStr} ฿</text>
-  <text x="210" y="486" font-size="10" fill="#94a3b8" text-anchor="middle">เอกสารจำลองสำหรับโหมด Frontend UI Template</text>
+  <text x="210" y="486" font-size="10" fill="#94a3b8" text-anchor="middle">เอกสารตัวอย่างสำหรับนำเสนอระบบ UiAccBot</text>
 </svg>`;
 
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
@@ -166,8 +166,11 @@ export const INITIAL_MOCK_USERS: AppUser[] = [
   MOCK_MASTER_ADMIN,
   {
     uid: 'usr_admin_progressive',
-    displayName: 'สุภาพร ตรวจสอบบัญชี (Co-Admin)',
+    displayName: 'สุภาพร ตรวจสอบบัญชี',
     email: 'progressiveacc2564@gmail.com',
+    position: 'ผู้สอบบัญชีรับอนุญาต (Co-Admin)',
+    department: 'ฝ่ายตรวจสอบบัญชี',
+    phone: '081-442-8910',
     role: 'admin',
     status: 'active',
     assignedProjectIds: ['proj-101', 'proj-102', 'proj-103', 'proj-104'],
@@ -176,8 +179,11 @@ export const INITIAL_MOCK_USERS: AppUser[] = [
   },
   {
     uid: 'usr_staff_somchai',
-    displayName: 'สมชาย ใจดี (ฝ่ายจัดซื้อโครงการ)',
+    displayName: 'สมชาย ใจดี',
     email: 'somchai@progressiveacc.co.th',
+    position: 'หัวหน้าฝ่ายจัดซื้อโครงการ',
+    department: 'ฝ่ายจัดซื้อและปฏิบัติการ',
+    phone: '089-712-3401',
     role: 'user',
     status: 'active',
     assignedProjectIds: ['proj-101', 'proj-102', 'proj-103'],
@@ -186,8 +192,11 @@ export const INITIAL_MOCK_USERS: AppUser[] = [
   },
   {
     uid: 'usr_staff_kanokwan',
-    displayName: 'กนกวรรณ ศรีสุข (ฝ่ายบัญชี & การเงิน)',
+    displayName: 'กนกวรรณ ศรีสุข',
     email: 'kanokwan@progressiveacc.co.th',
+    position: 'นักบัญชีอาวุโส',
+    department: 'ฝ่ายบัญชีและการเงิน',
+    phone: '086-519-2280',
     role: 'user',
     status: 'active',
     assignedProjectIds: ['proj-101', 'proj-104'],
@@ -196,8 +205,11 @@ export const INITIAL_MOCK_USERS: AppUser[] = [
   },
   {
     uid: 'usr_staff_nattapong',
-    displayName: 'ณัฐพงษ์ รัตนวงศ์ (รออนุมัติสิทธิ์)',
+    displayName: 'ณัฐพงษ์ รัตนวงศ์',
     email: 'nattapong@progressiveacc.co.th',
+    position: 'วิศวกรภาคสนาม',
+    department: 'ฝ่ายวางระบบเครือข่าย',
+    phone: '084-903-1152',
     role: 'user',
     status: 'pending',
     assignedProjectIds: ['proj-102'],

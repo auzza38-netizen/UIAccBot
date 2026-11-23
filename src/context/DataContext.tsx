@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import {
   collection,
   doc,
+  getDoc,
   onSnapshot,
   setDoc,
   updateDoc,
@@ -36,6 +37,8 @@ import {
   INITIAL_MOCK_RECEIPTS,
   INITIAL_MOCK_BANK_ACCOUNTS,
   INITIAL_MOCK_STATEMENT_RECORDS,
+  INITIAL_MOCK_USERS,
+  INITIAL_MOCK_AUDIT_LOGS,
 } from '../data/mockData';
 import { normalizeDateISO, normalizeStatementTransactionsList } from '../utils/formatters';
 
@@ -686,173 +689,270 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return map;
   }, [users]);
 
-  // Seed sample business data to Firebase (Admin utility in Settings)
+  // Seed sample business data to Firebase (Admin utility in Settings & empty dashboard)
   const seedSampleDataToFirebase = async () => {
     if (!currentUser || !isAdmin) {
       throw new Error('เฉพาะ Master Admin เท่านั้นที่สามารถเพิ่มข้อมูลตัวอย่างได้');
     }
 
-    await runWithSaving('กำลังเพิ่มข้อมูลตัวอย่างเข้า Firebase...', async () => {
+    await runWithSaving('กำลังเพิ่มข้อมูลตัวอย่างสำหรับนำเสนอเข้า Firebase...', async () => {
+      // 1. Check existing categories & projects first so already-seeded docs don't trigger update rules
+      const [catSnaps, projSnaps] = await Promise.all([
+        Promise.all(DEFAULT_CATEGORIES.map((cat) => getDoc(doc(db, 'categories', cat.id)))),
+        Promise.all(INITIAL_MOCK_PROJECTS.map((p) => getDoc(doc(db, 'projects', p.projectId)))),
+      ]);
+
       const batch1 = writeBatch(db);
+      let baseWrites = 0;
 
-      DEFAULT_CATEGORIES.forEach((cat) => {
-        batch1.set(
-          doc(db, 'categories', cat.id),
-          sanitizeForFirestore({
-            categoryId: cat.id,
-            categoryName: cat.name,
-            level: cat.level,
-            parentId: cat.parentId ?? null,
-            parentName: cat.parentName ?? null,
-            isActive: true,
-            createdBy: currentUser.uid,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          })
-        );
+      DEFAULT_CATEGORIES.forEach((cat, idx) => {
+        if (!catSnaps[idx].exists()) {
+          batch1.set(
+            doc(db, 'categories', cat.id),
+            sanitizeForFirestore({
+              categoryId: cat.id,
+              categoryName: cat.name,
+              level: cat.level,
+              parentId: cat.parentId ?? null,
+              parentName: cat.parentName ?? null,
+              isActive: true,
+              createdBy: currentUser.uid,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            })
+          );
+          baseWrites++;
+        }
       });
 
-      INITIAL_MOCK_PROJECTS.forEach((p) => {
-        const assigned = Array.from(
-          new Set([...(p.assignedUsers || []).map((e) => e.toLowerCase()), currentUser.email.toLowerCase()])
-        );
-        batch1.set(
-          doc(db, 'projects', p.projectId),
-          sanitizeForFirestore({
-            projectId: p.projectId,
-            projectCode: capString(p.projectCode, 40),
-            clientName: capString(p.clientName, 200),
-            budget: Number(p.budget) || 0,
-            assignedUsers: assigned,
-            status: p.status,
-            notes: capString(p.notes || '', 1000),
-            createdBy: currentUser.uid,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          })
-        );
+      INITIAL_MOCK_PROJECTS.forEach((p, idx) => {
+        if (!projSnaps[idx].exists()) {
+          const assigned = Array.from(
+            new Set([
+              ...(p.assignedUsers || []).map((e) => e.toLowerCase()),
+              currentUser.email.toLowerCase(),
+            ])
+          );
+          batch1.set(
+            doc(db, 'projects', p.projectId),
+            sanitizeForFirestore({
+              projectId: p.projectId,
+              projectCode: capString(p.projectCode, 40),
+              clientName: capString(p.clientName, 200),
+              budget: Number(p.budget) || 0,
+              assignedUsers: assigned,
+              status: p.status,
+              notes: capString(p.notes || '', 1000),
+              createdBy: currentUser.uid,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            })
+          );
+          baseWrites++;
+        }
       });
 
-      try {
-        await batch1.commit();
-      } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, 'seed_sample_data_base');
+      if (baseWrites > 0) {
+        try {
+          await batch1.commit();
+        } catch (error) {
+          handleFirestoreError(error, OperationType.WRITE, 'seed_sample_data_base');
+        }
       }
 
+      // 2. Check existing receipts, bankAccounts, statements, and sample team invites
+      const sampleInvites = INITIAL_MOCK_USERS.filter(
+        (u) =>
+          u.email.trim().toLowerCase() !== currentUser.email.trim().toLowerCase() &&
+          !isMasterAdminEmail(u.email)
+      );
+
+      const [rcptSnaps, accSnaps, stmtSnaps, invSnaps, logSnaps] = await Promise.all([
+        Promise.all(INITIAL_MOCK_RECEIPTS.map((r) => getDoc(doc(db, 'receipts', r.receiptId)))),
+        Promise.all(INITIAL_MOCK_BANK_ACCOUNTS.map((acc) => getDoc(doc(db, 'bankAccounts', acc.id)))),
+        Promise.all(INITIAL_MOCK_STATEMENT_RECORDS.map((stmt) => getDoc(doc(db, 'statements', stmt.id)))),
+        Promise.all(
+          sampleInvites.map((u) => getDoc(doc(db, 'userInvites', getInviteDocId(u.email))))
+        ),
+        Promise.all(INITIAL_MOCK_AUDIT_LOGS.map((l) => getDoc(doc(db, 'auditLogs', l.logId)))),
+      ]);
+
       const batch = writeBatch(db);
+      let detailWrites = 0;
 
-      INITIAL_MOCK_RECEIPTS.forEach((r) => {
-        const imgUrl =
-          r.receiptImageUrl && r.receiptImageUrl.length <= 350000 ? r.receiptImageUrl : '';
-        batch.set(
-          doc(db, 'receipts', r.receiptId),
-          sanitizeForFirestore({
-            receiptId: r.receiptId,
-            projectId: r.projectId || '',
-            uploadedBy: currentUser.uid,
-            uploadedByEmail: currentUser.email,
-            documentType: r.documentType,
-            documentDate: r.documentDate,
-            uploadDate: r.uploadDate,
-            receiptNumber: capString(r.receiptNumber, 100),
-            vendorName: capString(r.vendorName, 200),
-            vendorTaxId: capString(r.vendorTaxId || '', 40),
-            vendorAddress: capString(r.vendorAddress || '', 500),
-            customerName: capString(r.customerName || '', 200),
-            customerTaxId: capString(r.customerTaxId || '', 40),
-            customerAddress: capString(r.customerAddress || '', 500),
-            categoryId: r.categoryId,
-            subtotal: Number(r.subtotal) || 0,
-            vatAmount: Number(r.vatAmount) || 0,
-            withholdingTax: Number(r.withholdingTax) || 0,
-            discount: Number(r.discount) || 0,
-            grandTotal: Number(r.grandTotal) || 0,
-            currency: r.currency || 'THB',
-            paymentMethod: capString(r.paymentMethod || 'เงินสด', 60),
-            receiptImageUrl: imgUrl,
-            ocrStatus: r.ocrStatus,
-            verificationStatus: r.verificationStatus,
-            approvalStatus: r.approvalStatus,
-            isConfidential: Boolean(r.isConfidential),
-            notes: capString(r.notes || '', 1500),
-            items: (r.items || []).slice(0, 200),
-            totalPages: Number(r.totalPages) || 1,
-            approvedBy: r.approvedBy,
-            approvedAt: r.approvedAt,
+      INITIAL_MOCK_RECEIPTS.forEach((r, idx) => {
+        const snap = rcptSnaps[idx];
+        if (!snap.exists()) {
+          const imgUrl =
+            r.receiptImageUrl && r.receiptImageUrl.length <= 350000 ? r.receiptImageUrl : '';
+          batch.set(
+            doc(db, 'receipts', r.receiptId),
+            sanitizeForFirestore({
+              receiptId: r.receiptId,
+              projectId: r.projectId || '',
+              uploadedBy: currentUser.uid,
+              uploadedByEmail: capString(r.uploadedByEmail || currentUser.email, 200),
+              documentType: r.documentType,
+              documentDate: r.documentDate,
+              uploadDate: r.uploadDate,
+              receiptNumber: capString(r.receiptNumber, 100),
+              vendorName: capString(r.vendorName, 200),
+              vendorTaxId: capString(r.vendorTaxId || '', 40),
+              vendorAddress: capString(r.vendorAddress || '', 500),
+              customerName: capString(r.customerName || '', 200),
+              customerTaxId: capString(r.customerTaxId || '', 40),
+              customerAddress: capString(r.customerAddress || '', 500),
+              categoryId: r.categoryId,
+              subtotal: Number(r.subtotal) || 0,
+              vatAmount: Number(r.vatAmount) || 0,
+              withholdingTax: Number(r.withholdingTax) || 0,
+              discount: Number(r.discount) || 0,
+              grandTotal: Number(r.grandTotal) || 0,
+              currency: r.currency || 'THB',
+              paymentMethod: capString(r.paymentMethod || 'เงินสด', 60),
+              receiptImageUrl: imgUrl,
+              ocrStatus: r.ocrStatus,
+              verificationStatus: r.verificationStatus,
+              approvalStatus: r.approvalStatus,
+              isConfidential: Boolean(r.isConfidential),
+              notes: capString(r.notes || '', 1500),
+              items: (r.items || []).slice(0, 200),
+              totalPages: Number(r.totalPages) || 1,
+              approvedBy: r.approvedBy,
+              approvedAt: r.approvedAt,
+              isDeleted: false,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            })
+          );
+          detailWrites++;
+        } else if (snap.data()?.isDeleted === true) {
+          batch.update(doc(db, 'receipts', r.receiptId), {
             isDeleted: false,
-            createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
-          })
-        );
+          });
+          detailWrites++;
+        }
       });
 
-      INITIAL_MOCK_BANK_ACCOUNTS.forEach((acc) => {
-        batch.set(
-          doc(db, 'bankAccounts', acc.id),
-          sanitizeForFirestore({
-            id: acc.id,
-            accountNumber: capString(acc.accountNumber, 60),
-            bankName: capString(acc.bankName, 120),
-            bankCode: capString(acc.bankCode || 'KBANK', 20),
-            accountName: capString(acc.accountName, 200),
-            branchName: capString(acc.branchName || '', 120),
-            assetType: acc.assetType,
-            currentBalance: Number(acc.currentBalance) || 0,
-            availableBalance: Number(acc.availableBalance ?? acc.currentBalance) || 0,
-            currency: acc.currency || 'THB',
-            projectId: acc.projectId || '',
-            projectName: capString(acc.projectName || '', 200),
-            lastUpdatedDate: acc.lastUpdatedDate || new Date().toISOString().slice(0, 10),
-            notes: capString(acc.notes || '', 1000),
-            statementCount: Number(acc.statementCount) || 0,
-            createdBy: currentUser.uid,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          })
-        );
+      INITIAL_MOCK_BANK_ACCOUNTS.forEach((acc, idx) => {
+        if (!accSnaps[idx].exists()) {
+          batch.set(
+            doc(db, 'bankAccounts', acc.id),
+            sanitizeForFirestore({
+              id: acc.id,
+              accountNumber: capString(acc.accountNumber, 60),
+              bankName: capString(acc.bankName, 120),
+              bankCode: capString(acc.bankCode || 'KBANK', 20),
+              accountName: capString(acc.accountName, 200),
+              branchName: capString(acc.branchName || '', 120),
+              assetType: acc.assetType,
+              currentBalance: Number(acc.currentBalance) || 0,
+              availableBalance: Number(acc.availableBalance ?? acc.currentBalance) || 0,
+              currency: acc.currency || 'THB',
+              projectId: acc.projectId || '',
+              projectName: capString(acc.projectName || '', 200),
+              lastUpdatedDate: acc.lastUpdatedDate || new Date().toISOString().slice(0, 10),
+              notes: capString(acc.notes || '', 1000),
+              statementCount: Number(acc.statementCount) || 0,
+              createdBy: currentUser.uid,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            })
+          );
+          detailWrites++;
+        }
       });
 
-      INITIAL_MOCK_STATEMENT_RECORDS.forEach((stmt) => {
-        batch.set(
-          doc(db, 'statements', stmt.id),
-          sanitizeForFirestore({
-            id: stmt.id,
-            accountId: stmt.accountId,
-            accountNumber: capString(stmt.accountNumber, 60),
-            bankName: capString(stmt.bankName, 120),
-            accountName: capString(stmt.accountName || '', 200),
-            projectId: stmt.projectId || '',
-            projectName: capString(stmt.projectName || '', 200),
-            statementPeriodStart: stmt.statementPeriodStart || '',
-            statementPeriodEnd: stmt.statementPeriodEnd || '',
-            openingBalance: Number(stmt.openingBalance) || 0,
-            closingBalance: Number(stmt.closingBalance) || 0,
-            totalDebit: Number(stmt.totalDebit) || 0,
-            totalCredit: Number(stmt.totalCredit) || 0,
-            transactions: (stmt.transactions || []).slice(0, 500),
-            fileName: capString(stmt.fileName || '', 255),
-            uploadedAt: stmt.uploadedAt || new Date().toISOString(),
-            uploadedBy: currentUser.uid,
-            uploadedByEmail: currentUser.email,
-            rawOcrSummary: capString(stmt.rawOcrSummary || '', 5000),
-            notes: capString(stmt.notes || '', 1000),
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          })
-        );
+      INITIAL_MOCK_STATEMENT_RECORDS.forEach((stmt, idx) => {
+        if (!stmtSnaps[idx].exists()) {
+          batch.set(
+            doc(db, 'statements', stmt.id),
+            sanitizeForFirestore({
+              id: stmt.id,
+              accountId: stmt.accountId,
+              accountNumber: capString(stmt.accountNumber, 60),
+              bankName: capString(stmt.bankName, 120),
+              accountName: capString(stmt.accountName || '', 200),
+              projectId: stmt.projectId || '',
+              projectName: capString(stmt.projectName || '', 200),
+              statementPeriodStart: stmt.statementPeriodStart || '',
+              statementPeriodEnd: stmt.statementPeriodEnd || '',
+              openingBalance: Number(stmt.openingBalance) || 0,
+              closingBalance: Number(stmt.closingBalance) || 0,
+              totalDebit: Number(stmt.totalDebit) || 0,
+              totalCredit: Number(stmt.totalCredit) || 0,
+              transactions: (stmt.transactions || []).slice(0, 500),
+              fileName: capString(stmt.fileName || '', 255),
+              uploadedAt: stmt.uploadedAt || new Date().toISOString(),
+              uploadedBy: currentUser.uid,
+              uploadedByEmail: currentUser.email,
+              rawOcrSummary: capString(stmt.rawOcrSummary || '', 5000),
+              notes: capString(stmt.notes || '', 1000),
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            })
+          );
+          detailWrites++;
+        }
       });
 
-      try {
-        await batch.commit();
-      } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, 'seed_sample_data');
+      sampleInvites.forEach((u, idx) => {
+        if (!invSnaps[idx].exists()) {
+          const inviteId = getInviteDocId(u.email);
+          batch.set(
+            doc(db, 'userInvites', inviteId),
+            sanitizeForFirestore({
+              inviteId,
+              displayName: capString(u.displayName, 120),
+              email: capString(u.email.trim().toLowerCase(), 200),
+              position: capString(u.position || '', 120),
+              department: capString(u.department || '', 120),
+              phone: capString(u.phone || '', 40),
+              role: u.role === 'admin' ? 'admin' : 'user',
+              status: u.status,
+              assignedProjectIds: (u.assignedProjectIds || []).slice(0, 100),
+              createdBy: currentUser.uid,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            })
+          );
+          detailWrites++;
+        }
+      });
+
+      INITIAL_MOCK_AUDIT_LOGS.forEach((l, idx) => {
+        if (!logSnaps[idx].exists()) {
+          batch.set(
+            doc(db, 'auditLogs', l.logId),
+            sanitizeForFirestore({
+              logId: l.logId,
+              userId: currentUser.uid,
+              userEmail: capString(l.userEmail || currentUser.email, 200),
+              action: capString(l.action, 120),
+              entityType: l.entityType,
+              entityId: capString(l.entityId, 128),
+              changes: capString(l.changes, 1000),
+              timestamp: serverTimestamp(),
+            })
+          );
+          detailWrites++;
+        }
+      });
+
+      if (detailWrites > 0) {
+        try {
+          await batch.commit();
+        } catch (error) {
+          handleFirestoreError(error, OperationType.WRITE, 'seed_sample_data');
+        }
       }
 
       await appendAuditLog(
         'Seed Sample Data',
         'auth',
         'firebase_seed',
-        `Master Admin ${currentUser.email} seeded starter projects, receipts, bank accounts & statements`
+        `Master Admin ${currentUser.email} seeded presentation projects, receipts, team invites, bank accounts & statements`
       );
     });
   };

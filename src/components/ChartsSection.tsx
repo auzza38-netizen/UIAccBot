@@ -219,7 +219,14 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
 
     return users
       .map((u) => {
-        const uReceipts = receipts.filter((r) => r.uploadedBy === u.uid || r.uploadedByEmail === u.email);
+        const uEmail = (u.email || '').trim().toLowerCase();
+        const uReceipts = receipts.filter((r) => {
+          const rEmail = (r.uploadedByEmail || '').trim().toLowerCase();
+          if (rEmail) {
+            return rEmail === uEmail;
+          }
+          return r.uploadedBy === u.uid;
+        });
         const totalAmount = uReceipts.reduce((sum, r) => sum + (r.grandTotal || 0), 0);
         const pendingCount = uReceipts.filter((r) => r.approvalStatus === 'pending').length;
         const needsReviewCount = uReceipts.filter((r) => r.verificationStatus === 'needs_review').length;
